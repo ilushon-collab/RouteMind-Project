@@ -1,0 +1,2862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RouteMind - Route Optimization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            color-scheme: light;
+            --theme-transition-duration: 280ms;
+            --theme-transition-curve: cubic-bezier(0.4, 0, 0.2, 1);
+            --theme-surface-transition:
+                background-color var(--theme-transition-duration) var(--theme-transition-curve),
+                color var(--theme-transition-duration) var(--theme-transition-curve),
+                border-color var(--theme-transition-duration) var(--theme-transition-curve),
+                box-shadow var(--theme-transition-duration) var(--theme-transition-curve),
+                opacity 220ms var(--theme-transition-curve),
+                fill var(--theme-transition-duration) var(--theme-transition-curve),
+                stroke var(--theme-transition-duration) var(--theme-transition-curve),
+                filter var(--theme-transition-duration) var(--theme-transition-curve);
+            --theme-transform-transition: transform 200ms var(--theme-transition-curve);
+            --theme-background-transition:
+                background-color 320ms var(--theme-transition-curve),
+                color var(--theme-transition-duration) var(--theme-transition-curve);
+            --theme-background-fade: opacity 320ms var(--theme-transition-curve);
+            --theme-soften-opacity: 0.985;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            min-height: 100vh;
+            position: relative;
+            isolation: isolate;
+            background-color: #EEF4F6;
+            color: #1F2937;
+            line-height: 1.6;
+            transition: var(--theme-background-transition);
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            transition: var(--theme-background-fade);
+        }
+
+        body::before {
+            z-index: -2;
+            background: linear-gradient(135deg, #EAF6FB 0%, #EEF8F4 50%, #FFF8F0 100%);
+            opacity: 1;
+        }
+
+        body::after {
+            z-index: -1;
+            background: linear-gradient(135deg, #0f172a 0%, #111827 48%, #1f2937 100%);
+            opacity: 0;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.76);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(190, 205, 220, 0.55);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(31, 41, 55, 0.04);
+            transition: var(--theme-surface-transition);
+        }
+
+        .header::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 2px;
+            background: linear-gradient(90deg,
+                rgba(20, 184, 230, 0.28) 0%,
+                rgba(20, 200, 176, 0.18) 52%,
+                rgba(255, 138, 52, 0.18) 100%);
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 40px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 44px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-icon {
+            font-size: 32px;
+            line-height: 1;
+            color: #14B8E6;
+            filter: drop-shadow(0 2px 6px rgba(20, 184, 230, 0.16));
+            transition: var(--theme-surface-transition);
+        }
+
+        .header-text h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #111827;
+            letter-spacing: -0.6px;
+            line-height: 1.05;
+            transition: var(--theme-surface-transition);
+        }
+
+        .header-text p {
+            font-size: 12px;
+            color: #94A3B8;
+            margin-top: 5px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            transition: var(--theme-surface-transition);
+        }
+
+        .version-badge {
+            background: rgba(255, 255, 255, 0.52);
+            color: #64748B;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(190, 205, 220, 0.75);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: var(--theme-surface-transition);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.76);
+            color: #334155;
+            border: 1px solid rgba(190, 205, 220, 0.75);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: var(--theme-surface-transition), var(--theme-transform-transition);
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-1px);
+            border-color: rgba(20, 184, 230, 0.45);
+        }
+
+        .theme-toggle-icon {
+            font-size: 14px;
+            line-height: 1;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-actions,
+        .auth-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .auth-user {
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(190, 205, 220, 0.72);
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+            min-width: 0;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-user.hidden {
+            display: none !important;
+        }
+
+        .auth-user-meta {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .auth-user-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #0891b2;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-user-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .btn-ghost {
+            background: rgba(255, 255, 255, 0.76);
+            color: #334155;
+            border: 1px solid rgba(190, 205, 220, 0.75);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+            transition: var(--theme-surface-transition);
+        }
+
+        .btn-ghost:hover {
+            border-color: rgba(20, 184, 230, 0.45);
+            background: white;
+        }
+
+        .btn-auth {
+            padding: 8px 14px;
+            font-size: 12px;
+            border-radius: 999px;
+        }
+
+        .btn-header-logout {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 999px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 32px;
+            padding: 32px;
+            min-height: calc(100vh - 120px);
+            background: transparent;
+            border-radius: 0;
+        }
+
+        .form-column {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .results-column {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .results-column .card {
+            margin: 0;
+        }
+
+        .card {
+            background: #FFFFFF;
+            border-radius: 8px;
+            border: 1px solid #DDE5EC;
+            padding: 22px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+            transition: var(--theme-surface-transition);
+        }
+
+        .card:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+            border-color: #DDE5EC;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e8eaed;
+            transition: var(--theme-surface-transition);
+        }
+
+        .card-title-icon {
+            font-size: 20px;
+            color: #14B8E6;
+            opacity: 0.95;
+            transition: var(--theme-surface-transition);
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #0891b2;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 14px;
+            margin-top: 22px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .section-label-icon {
+            display: inline-block;
+            margin-right: 6px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .section-label:first-child {
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-row .form-group {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: var(--theme-surface-transition);
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid #dfe2e8;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: var(--theme-surface-transition);
+            background: white;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #14B8E6;
+            box-shadow: 0 0 0 3px rgba(20, 184, 230, 0.1);
+            background: white;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stop-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            transition: var(--theme-surface-transition);
+            border-left: 3px solid transparent;
+        }
+
+        .stop-card:hover {
+            background: #F7F9FC;
+            border-color: #DDE5EC;
+            border-left-color: #14B8E6;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .stop-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .stop-id {
+            font-size: 11px;
+            font-weight: 700;
+            color: #0891b2;
+            background: #ecf8ff;
+            padding: 3px 8px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            transition: var(--theme-surface-transition);
+        }
+
+        .stop-remove-btn {
+            background: transparent;
+            color: #F25F5C;
+            border: none;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--theme-surface-transition), var(--theme-transform-transition);
+        }
+
+        .stop-remove-btn:hover {
+            background: rgba(242, 95, 92, 0.12);
+            color: #D14345;
+        }
+
+        .stop-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .stop-grid-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stop-grid-col label {
+            font-size: 9px;
+            margin-bottom: 0;
+            font-weight: 700;
+            color: #9ca3af;
+            transition: var(--theme-surface-transition);
+        }
+
+        .stop-grid-col input {
+            padding: 7px 9px;
+            font-size: 12px;
+            border: 1px solid #dfe2e8;
+        }
+
+        .stop-grid-col input:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.08);
+        }
+
+        .scroll-container {
+            max-height: 320px;
+            overflow-y: auto;
+            border: 1px solid #e8eaed;
+            border-radius: 6px;
+            padding: 0;
+            background: white;
+            transition: var(--theme-surface-transition);
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+            transition: background-color var(--theme-transition-duration) var(--theme-transition-curve);
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 18px;
+            border-top: 1px solid #e8eaed;
+            transition: var(--theme-surface-transition);
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--theme-surface-transition), var(--theme-transform-transition);
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #14B8E6;
+            color: white;
+            box-shadow: 0 2px 8px rgba(20, 184, 230, 0.22);
+        }
+
+        .btn-primary:hover {
+            background: #0EA5D8;
+            box-shadow: 0 6px 16px rgba(20, 184, 230, 0.22);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            background: #0B76A9;
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #F7F9FC;
+            color: #374151;
+            border: 1px solid #DDE5EC;
+        }
+
+        .btn-secondary:hover {
+            background: #EFF2F7;
+            border-color: #DDE5EC;
+        }
+
+        .btn-add-stop {
+            width: 100%;
+            background: white;
+            color: #6b7280;
+            border: 1px dashed #dfe2e8;
+            padding: 9px 12px;
+            margin-top: 10px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .btn-add-stop:hover {
+            background: #fafbfc;
+            border-color: #b0b9c6;
+            color: #4b5563;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 36px 24px;
+            background: #fafbfc;
+            border-radius: 8px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e8eaed;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #9ca3af;
+            font-size: 13px;
+            font-weight: 500;
+            transition: var(--theme-surface-transition);
+        }
+
+        .alert {
+            padding: 12px 14px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            display: none;
+            border-left: 4px solid;
+            background-color: white;
+            transition: var(--theme-surface-transition);
+        }
+
+        .alert-error {
+            background-color: #fef2f2;
+            border-color: #f87171;
+            color: #991b1b;
+        }
+
+        .alert-success {
+            background-color: #f0fdf4;
+            border-color: #22c55e;
+            color: #15803d;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 40px;
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: var(--theme-surface-transition);
+        }
+
+        .empty-state-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+            transition: var(--theme-surface-transition);
+        }
+
+        .empty-state-text {
+            font-size: 15px;
+            color: #9ca3af;
+            font-weight: 500;
+            line-height: 1.5;
+            transition: var(--theme-surface-transition);
+        }
+
+        .dashboard-placeholder {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .placeholder-card {
+            background: #f9fafc;
+            border: 1px solid #dfe2e8;
+            border-radius: 8px;
+            padding: 14px;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            transition: var(--theme-surface-transition);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .placeholder-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: #b0b9c6;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 8px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .placeholder-value {
+            height: 24px;
+            background: #e8eaed;
+            border-radius: 4px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+            padding: 0;
+            background: transparent;
+            border-radius: 8px;
+        }
+
+        .metric-card {
+            background: white;
+            border: 1px solid #e8eaed;
+            border-radius: 8px;
+            padding: 16px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .metric-card:nth-child(2) {
+            padding: 18px;
+            background: #FFFFFF;
+            border: 1px solid #DDE5EC;
+            box-shadow: 0 2px 4px rgba(20, 184, 230, 0.08);
+        }
+
+        .metric-card:nth-child(2):hover {
+            box-shadow: 0 4px 10px rgba(20, 184, 230, 0.14);
+            border-color: #14B8E6;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+            border-color: #DDE5EC;
+        }
+
+        .metric-card:nth-child(1) {
+            border-color: #FF8A34;
+        }
+
+        .metric-card:nth-child(1):hover {
+            border-color: #FF8A34;
+            box-shadow: 0 2px 6px rgba(255, 138, 52, 0.12);
+        }
+
+        .metric-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 8px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .metric-card:nth-child(1) .metric-label {
+            color: #FF8A34;
+        }
+
+        .metric-card:nth-child(2) .metric-label {
+            color: #14B8E6;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1F2937;
+            word-break: break-word;
+            line-height: 1.3;
+            transition: var(--theme-surface-transition);
+        }
+
+        .metric-card:nth-child(1) .metric-value {
+            color: #FF8A34;
+        }
+
+        .metric-card:nth-child(2) .metric-value {
+            font-size: 32px;
+            color: #14B8E6;
+        }
+
+        .metric-value.positive {
+            color: #22C55E;
+        }
+
+        .metric-value.warning {
+            color: #F6C453;
+        }
+
+        .metric-value.neutral {
+            color: #4B5563;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: white;
+            border-bottom: 2px solid #DDE5EC;
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            color: #1F2937;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: var(--theme-surface-transition);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #4b5563;
+            transition: var(--theme-surface-transition);
+        }
+
+        tbody tr {
+            transition: var(--theme-surface-transition);
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        tbody tr:hover {
+            background: #ecf8ff;
+        }
+
+        .table-container {
+            margin-bottom: 0;
+        }
+
+        .table-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #DDE5EC;
+            transition: var(--theme-surface-transition);
+        }
+
+        .visualization-container {
+            background: white;
+            border: 1px solid #DDE5EC;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            transition: var(--theme-surface-transition);
+        }
+
+        .visualization-container:hover {
+            box-shadow: 0 2px 6px rgba(20, 184, 230, 0.1);
+        }
+
+        .visualization-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 16px;
+            text-align: left;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #DDE5EC;
+            transition: var(--theme-surface-transition);
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #DDE5EC;
+            border-radius: 6px;
+            display: block;
+            margin: 0 auto 16px;
+            background: #F7F9FC;
+            transition: var(--theme-surface-transition);
+        }
+
+        .legend {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            margin-top: 14px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6b7280;
+            font-weight: 500;
+            transition: var(--theme-surface-transition);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .auth-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.42);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 300;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-modal.open {
+            display: flex;
+        }
+
+        .auth-panel {
+            width: min(100%, 420px);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(221, 229, 236, 0.95);
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-panel-header {
+            padding: 22px 24px 18px;
+            border-bottom: 1px solid #e8eaed;
+            background-color: rgba(246, 250, 252, 0.92);
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-panel-header h2 {
+            font-size: 22px;
+            color: #111827;
+            letter-spacing: -0.03em;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-panel-header p {
+            margin-top: 6px;
+            font-size: 13px;
+            color: #64748b;
+            transition: var(--theme-surface-transition);
+        }
+
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .auth-tab {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #dbe4ed;
+            background: rgba(255, 255, 255, 0.75);
+            color: #475569;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--theme-surface-transition), var(--theme-transform-transition);
+        }
+
+        .auth-tab.active {
+            background: white;
+            color: #0891b2;
+            border-color: rgba(20, 184, 230, 0.34);
+            box-shadow: 0 6px 16px rgba(20, 184, 230, 0.08);
+        }
+
+        .auth-panel-body {
+            padding: 22px 24px 24px;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .auth-actions-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .auth-helper-text {
+            font-size: 12px;
+            color: #64748b;
+            transition: var(--theme-surface-transition);
+        }
+
+        .stacked-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid #e8eaed;
+            transition: var(--theme-surface-transition);
+        }
+
+        .scenario-toolbar,
+        .result-toolbar {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .collection-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .collection-empty {
+            border: 1px dashed #dfe2e8;
+            border-radius: 8px;
+            padding: 14px;
+            background: #fafbfc;
+            color: #64748b;
+            font-size: 13px;
+            text-align: center;
+            transition: var(--theme-surface-transition);
+        }
+
+        .collection-item {
+            border: 1px solid #dfe2e8;
+            border-radius: 8px;
+            padding: 12px;
+            background: white;
+            transition: var(--theme-surface-transition);
+        }
+
+        .collection-item:hover {
+            border-color: #b8d6e4;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        }
+
+        .collection-item-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .collection-item-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .collection-item-meta {
+            margin-top: 4px;
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.45;
+        }
+
+        .collection-item-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .btn-small {
+            padding: 7px 10px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #fff5f5;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
+        .btn-danger:hover {
+            background: #fee2e2;
+        }
+
+        .helper-note {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        .result-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .summary-chip {
+            background: #f8fbfd;
+            border: 1px solid #dfe8ef;
+            border-radius: 10px;
+            padding: 12px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .summary-chip-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #0891b2;
+            margin-bottom: 4px;
+        }
+
+        .summary-chip-value {
+            font-size: 14px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        body.dark-mode {
+            background-color: #111827;
+            color: #E5EEF9;
+        }
+
+        body.dark-mode::before {
+            opacity: 0;
+        }
+
+        body.dark-mode::after {
+            opacity: 1;
+        }
+
+        body.dark-mode .header {
+            background: rgba(15, 23, 42, 0.82);
+            border-bottom-color: rgba(71, 85, 105, 0.55);
+            box-shadow: 0 10px 28px rgba(2, 6, 23, 0.45);
+        }
+
+        body.dark-mode .header-icon,
+        body.dark-mode .card-title-icon,
+        body.dark-mode .section-label-icon,
+        body.dark-mode .theme-toggle-icon,
+        body.dark-mode .empty-state-icon {
+            filter: brightness(0.78) saturate(0.7);
+        }
+
+        body.dark-mode .card-title-icon,
+        body.dark-mode .section-label-icon,
+        body.dark-mode .theme-toggle-icon {
+            opacity: 0.88;
+        }
+
+        body.dark-mode .empty-state-icon {
+            opacity: 0.42;
+            filter: grayscale(0.2) brightness(0.72) saturate(0.55);
+        }
+
+        body.dark-mode .header-text h1,
+        body.dark-mode .card-title,
+        body.dark-mode .table-title,
+        body.dark-mode .visualization-title,
+        body.dark-mode th,
+        body.dark-mode .metric-value {
+            color: #F8FAFC;
+        }
+
+        body.dark-mode .header-text p,
+        body.dark-mode .version-badge,
+        body.dark-mode label,
+        body.dark-mode .legend-item,
+        body.dark-mode .loading-text,
+        body.dark-mode td,
+        body.dark-mode .empty-state-text,
+        body.dark-mode .placeholder-label,
+        body.dark-mode .metric-label {
+            color: #94A3B8;
+        }
+
+        body.dark-mode .version-badge,
+        body.dark-mode .theme-toggle {
+            background: rgba(30, 41, 59, 0.88);
+            color: #E2E8F0;
+            border-color: rgba(71, 85, 105, 0.9);
+            box-shadow: 0 2px 12px rgba(2, 6, 23, 0.35);
+        }
+
+        body.dark-mode .auth-user,
+        body.dark-mode .btn-ghost,
+        body.dark-mode .auth-tab {
+            background: rgba(30, 41, 59, 0.88);
+            color: #E2E8F0;
+            border-color: rgba(71, 85, 105, 0.9);
+            box-shadow: 0 2px 12px rgba(2, 6, 23, 0.35);
+        }
+
+        body.dark-mode .auth-user-name,
+        body.dark-mode .auth-panel-header h2 {
+            color: #F8FAFC;
+        }
+
+        body.dark-mode .auth-user-label {
+            color: #67e8f9;
+        }
+
+        body.dark-mode .btn-ghost:hover {
+            background: #15233c;
+        }
+
+        body.dark-mode .card,
+        body.dark-mode .metric-card,
+        body.dark-mode .empty-state,
+        body.dark-mode .visualization-container,
+        body.dark-mode .alert {
+            background-color: rgba(15, 23, 42, 0.98);
+            border-color: rgba(71, 85, 105, 0.58);
+            box-shadow: 0 10px 28px rgba(2, 6, 23, 0.28);
+        }
+
+        body.dark-mode .scroll-container,
+        body.dark-mode .stop-card,
+        body.dark-mode input[type="text"],
+        body.dark-mode input[type="email"],
+        body.dark-mode input[type="password"],
+        body.dark-mode input[type="number"],
+        body.dark-mode select,
+        body.dark-mode th,
+        body.dark-mode canvas,
+        body.dark-mode .loading,
+        body.dark-mode .placeholder-card {
+            background: #0f1b31;
+            border-color: rgba(71, 85, 105, 0.52);
+        }
+
+        body.dark-mode .stop-card,
+        body.dark-mode .scroll-container,
+        body.dark-mode .loading,
+        body.dark-mode .placeholder-card,
+        body.dark-mode .btn-secondary,
+        body.dark-mode .btn-add-stop {
+            box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.03);
+        }
+
+        body.dark-mode .stop-id {
+            background: rgba(20, 184, 230, 0.12);
+            color: #7dd3fc;
+            border: 1px solid rgba(20, 184, 230, 0.18);
+            box-shadow: inset 0 1px 0 rgba(125, 211, 252, 0.08);
+        }
+
+        body.dark-mode .placeholder-card {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(148, 163, 184, 0.12);
+        }
+
+        body.dark-mode .placeholder-value {
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        body.dark-mode tbody tr:nth-child(even) {
+            background: #172033;
+        }
+
+        body.dark-mode tbody tr:hover {
+            background: rgba(20, 184, 230, 0.12);
+        }
+
+        body.dark-mode .stop-card:hover,
+        body.dark-mode .btn-secondary:hover,
+        body.dark-mode .btn-add-stop:hover {
+            background: #15233c;
+        }
+
+        body.dark-mode .btn-secondary,
+        body.dark-mode .btn-add-stop {
+            background: #101b31;
+            color: #CBD5E1;
+            border-color: rgba(71, 85, 105, 0.52);
+        }
+
+        body.dark-mode .btn-add-stop {
+            border-style: dashed;
+        }
+
+        body.dark-mode input[type="text"],
+        body.dark-mode input[type="email"],
+        body.dark-mode input[type="password"],
+        body.dark-mode input[type="number"],
+        body.dark-mode select {
+            color: #E2E8F0;
+            background: #101a2e;
+            border-color: rgba(71, 85, 105, 0.52);
+        }
+
+        body.dark-mode input[type="text"]:focus,
+        body.dark-mode input[type="email"]:focus,
+        body.dark-mode input[type="password"]:focus,
+        body.dark-mode input[type="number"]:focus,
+        body.dark-mode select:focus {
+            background: #12213a;
+            border-color: rgba(56, 189, 248, 0.75);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
+        }
+
+        body.dark-mode .stop-grid-col input {
+            background: #101a2e;
+            border-color: rgba(71, 85, 105, 0.5);
+        }
+
+        body.dark-mode .stop-grid-col input:focus {
+            border-color: rgba(34, 211, 238, 0.78);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+        }
+
+        body.dark-mode .metric-card:nth-child(2) {
+            background-color: rgba(17, 31, 52, 0.98);
+            border-color: rgba(56, 189, 248, 0.28);
+            box-shadow: 0 10px 28px rgba(14, 165, 216, 0.08);
+        }
+
+        body.dark-mode .metric-card:nth-child(1) {
+            border-color: rgba(255, 138, 52, 0.4);
+        }
+
+        body.dark-mode .metric-card:hover {
+            border-color: rgba(100, 116, 139, 0.72);
+            box-shadow: 0 12px 30px rgba(2, 6, 23, 0.3);
+        }
+
+        body.dark-mode .alert-error {
+            background-color: rgba(127, 29, 29, 0.35);
+            border-color: #f87171;
+            color: #fecaca;
+        }
+
+        body.dark-mode .alert-success {
+            background-color: rgba(20, 83, 45, 0.35);
+            border-color: #22c55e;
+            color: #bbf7d0;
+        }
+
+        body.dark-mode .auth-panel {
+            background-color: rgba(15, 23, 42, 0.98);
+            border-color: rgba(71, 85, 105, 0.58);
+            box-shadow: 0 20px 60px rgba(2, 6, 23, 0.55);
+        }
+
+        body.dark-mode .auth-panel-header {
+            background-color: rgba(15, 23, 42, 0.94);
+            border-bottom-color: rgba(71, 85, 105, 0.45);
+        }
+
+        body.dark-mode .auth-panel-header p,
+        body.dark-mode .auth-helper-text,
+        body.dark-mode .helper-note,
+        body.dark-mode .collection-item-meta {
+            color: #94A3B8;
+        }
+
+        body.dark-mode .auth-tab.active {
+            background: #0f1b31;
+            color: #67e8f9;
+            border-color: rgba(34, 211, 238, 0.34);
+            box-shadow: 0 6px 16px rgba(14, 165, 216, 0.12);
+        }
+
+        body.dark-mode .collection-empty,
+        body.dark-mode .collection-item,
+        body.dark-mode .summary-chip {
+            background: #111c31;
+            border-color: #273449;
+        }
+
+        body.dark-mode .collection-item-title,
+        body.dark-mode .summary-chip-value {
+            color: #E5EEF9;
+        }
+
+        body.dark-mode .btn-danger {
+            background: rgba(127, 29, 29, 0.25);
+            border-color: rgba(248, 113, 113, 0.35);
+            color: #fecaca;
+        }
+
+        body.theme-switching .header,
+        body.theme-switching .version-badge,
+        body.theme-switching .theme-toggle,
+        body.theme-switching .auth-user,
+        body.theme-switching .card,
+        body.theme-switching .metric-card,
+        body.theme-switching .empty-state,
+        body.theme-switching .visualization-container,
+        body.theme-switching .scroll-container,
+        body.theme-switching .stop-card,
+        body.theme-switching .loading,
+        body.theme-switching .placeholder-card,
+        body.theme-switching .placeholder-value,
+        body.theme-switching .btn-secondary,
+        body.theme-switching .btn-add-stop,
+        body.theme-switching input[type="text"],
+        body.theme-switching input[type="email"],
+        body.theme-switching input[type="password"],
+        body.theme-switching input[type="number"],
+        body.theme-switching select,
+        body.theme-switching th,
+        body.theme-switching tbody tr,
+        body.theme-switching canvas,
+        body.theme-switching .auth-modal,
+        body.theme-switching .auth-panel,
+        body.theme-switching .auth-panel-header,
+        body.theme-switching .auth-tab {
+            opacity: var(--theme-soften-opacity);
+        }
+
+        body:not(.theme-ready),
+        body:not(.theme-ready) *,
+        body:not(.theme-ready)::before,
+        body:not(.theme-ready)::after {
+            transition: none !important;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            :root {
+                --theme-transition-duration: 1ms;
+            }
+
+            body::before,
+            body::after {
+                transition: none;
+            }
+
+            .placeholder-card {
+                animation: none;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 380px 1fr;
+                gap: 24px;
+            }
+
+            .container {
+                padding: 0 32px;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                padding: 24px 0;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
+            }
+
+            .header-right {
+                flex-wrap: wrap;
+                justify-content: flex-start;
+            }
+
+            .header-text h1 {
+                font-size: 22px;
+            }
+
+            .container {
+                padding: 0 24px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .main-layout {
+                padding: 16px 0;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                grid-template-columns: 1fr;
+            }
+
+            .header-left {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .header-right {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .header-text h1 {
+                font-size: 18px;
+            }
+
+            .auth-actions,
+            .auth-user {
+                width: 100%;
+            }
+
+            .auth-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .auth-actions .btn-auth,
+            .auth-user .btn-header-logout {
+                width: 100%;
+            }
+
+            .auth-user {
+                justify-content: space-between;
+            }
+
+            .auth-user-name {
+                max-width: 120px;
+            }
+
+            .auth-actions-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .scenario-toolbar,
+            .result-toolbar,
+            .result-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="header-title">
+                        <span class="header-icon">🛣️</span>
+                        <div class="header-text">
+                            <h1>RouteMind</h1>
+                            <p>Route Optimization Platform</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="auth-actions" id="authActions">
+                        <button class="btn btn-ghost btn-auth" type="button" onclick="openAuthModal('login')">Login</button>
+                        <button class="btn btn-primary btn-auth" type="button" onclick="openAuthModal('register')">Register</button>
+                    </div>
+                    <div class="auth-user hidden" id="authUser">
+                        <div class="auth-user-meta">
+                            <span class="auth-user-label">Signed in</span>
+                            <span class="auth-user-name" id="authUserName"></span>
+                        </div>
+                        <button class="btn btn-secondary btn-header-logout" type="button" onclick="logout()">Logout</button>
+                    </div>
+                    <button class="theme-toggle" id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Switch to dark mode">
+                        <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
+                        <span id="themeToggleText">Dark mode</span>
+                    </button>
+                    <div class="version-badge">v3.0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-modal" id="authModal" onclick="closeAuthModal()">
+        <div class="auth-panel" onclick="event.stopPropagation()">
+            <div class="auth-panel-header">
+                <h2>Account Access</h2>
+                <p>Sign in to RouteMind to save scenarios, protect optimization runs, and reload your history.</p>
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="loginTab" type="button" onclick="switchAuthMode('login')">Login</button>
+                    <button class="auth-tab" id="registerTab" type="button" onclick="switchAuthMode('register')">Register</button>
+                </div>
+            </div>
+            <div class="auth-panel-body">
+                <div class="alert alert-error" id="authError"></div>
+                <div class="alert alert-success" id="authSuccess"></div>
+
+                <form class="auth-form active" id="loginForm">
+                    <div class="form-group">
+                        <label>Email or Username</label>
+                        <input type="text" id="loginIdentity" autocomplete="username" placeholder="you@example.com or dispatcher01">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Enter your password">
+                    </div>
+                    <div class="auth-actions-row">
+                        <span class="auth-helper-text">Use your email or username to sign in.</span>
+                        <button class="btn btn-primary" type="submit">Login</button>
+                    </div>
+                </form>
+
+                <form class="auth-form" id="registerForm">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="registerUsername" autocomplete="username" placeholder="Choose a username">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="registerEmail" autocomplete="email" placeholder="you@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="registerPassword" autocomplete="new-password" placeholder="Create a password">
+                    </div>
+                    <div class="auth-actions-row">
+                        <span class="auth-helper-text">New accounts are signed in immediately after registration.</span>
+                        <button class="btn btn-primary" type="submit">Create Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="main-layout">
+            <!-- LEFT COLUMN: Form -->
+            <div class="form-column">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-title-icon">⚙️</span>
+                        Route Configuration
+                    </div>
+
+                    <div class="alert alert-error" id="error"></div>
+                    <div class="alert alert-success" id="success"></div>
+
+                    <!-- Depot Section -->
+                    <div class="section-label"><span class="section-label-icon">📍</span>Depot Location</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>X Coordinate</label>
+                            <input type="number" id="depotX" value="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Y Coordinate</label>
+                            <input type="number" id="depotY" value="0" step="0.1">
+                        </div>
+                    </div>
+
+                    <!-- Settings Section -->
+                    <div class="section-label"><span class="section-label-icon">⚡</span>Settings</div>
+                    <div class="form-group">
+                        <label>Max Shift Time (minutes)</label>
+                        <input type="number" id="maxShiftTime" value="480" min="60">
+                    </div>
+                    <div class="form-group">
+                        <label>Algorithm</label>
+                        <select id="algorithm">
+                            <option value="2opt">2-opt (Recommended)</option>
+                            <option value="swap">Swap (Fast)</option>
+                            <option value="relocate">Relocate (Balanced)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Iterations</label>
+                        <input type="number" id="maxIterations" value="500" min="10">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>No Improvement Limit</label>
+                            <input type="number" id="noImprovementLimit" value="100" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Time Limit (seconds)</label>
+                            <input type="number" id="timeLimit" value="" min="0" step="0.1" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div class="section-label"><span class="section-label-icon">⚖️</span>Weights</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Distance Weight</label>
+                            <input type="number" id="weightDistance" value="1" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Wait Weight</label>
+                            <input type="number" id="weightWait" value="0.5" min="0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Lateness Weight</label>
+                            <input type="number" id="weightLate" value="2" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Priority Weight</label>
+                            <input type="number" id="weightPriority" value="1" min="0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Shift Overrun Weight</label>
+                        <input type="number" id="weightShift" value="4" min="0" step="0.1">
+                    </div>
+
+                    <!-- Delivery Stops Section -->
+                    <div class="section-label"><span class="section-label-icon">📦</span>Delivery Stops</div>
+                    <div class="scroll-container" id="stopsList"></div>
+                    <button class="btn btn-add-stop" onclick="addStop()">+ Add Stop</button>
+
+                    <!-- Action Buttons -->
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="optimizeRoute()">Optimize Route</button>
+                        <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+                    </div>
+                    <div class="stacked-actions">
+                        <div class="result-toolbar">
+                            <button class="btn btn-secondary" onclick="loadSampleScenario()">Load Sample Data</button>
+                            <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
+                        </div>
+                    </div>
+
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <div class="loading-text">Optimizing route...</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-title-icon">💾</span>
+                        Saved Scenarios
+                    </div>
+                    <div class="form-group">
+                        <label>Scenario Name</label>
+                        <input type="text" id="scenarioName" maxlength="80" placeholder="Morning deliveries">
+                    </div>
+                    <div class="scenario-toolbar">
+                        <button class="btn btn-primary" onclick="saveScenario()">Save Scenario</button>
+                        <button class="btn btn-secondary" onclick="refreshScenarios()">Refresh List</button>
+                    </div>
+                    <div class="helper-note">Saved scenarios and optimization history are attached to your signed-in account.</div>
+                    <div class="section-label"><span class="section-label-icon">📚</span>Your Scenarios</div>
+                    <div class="collection-list" id="scenarioList"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Results -->
+            <div class="results-column">
+                <div class="card">
+                    <div class="card-title">
+                        <span class="card-title-icon">🕘</span>
+                        Recent Optimization History
+                    </div>
+                    <div class="scenario-toolbar">
+                        <button class="btn btn-secondary" onclick="refreshHistory()">Refresh History</button>
+                        <button class="btn btn-secondary" onclick="clearLoadedHistory()">Reset Loaded State</button>
+                    </div>
+                    <div class="helper-note">Load a previous run to restore both the route inputs and the computed result.</div>
+                    <div class="section-label"><span class="section-label-icon">🧭</span>Recent Runs</div>
+                    <div class="collection-list" id="historyList"></div>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-state-icon">📊</div>
+                    <div class="empty-state-text">Configure your route and click Optimize to see results</div>
+                    <div class="dashboard-placeholder">
+                        <div class="placeholder-card">
+                            <div class="placeholder-label">Initial Cost</div>
+                            <div class="placeholder-value"></div>
+                        </div>
+                        <div class="placeholder-card">
+                            <div class="placeholder-label">Optimized Cost</div>
+                            <div class="placeholder-value"></div>
+                        </div>
+                        <div class="placeholder-card">
+                            <div class="placeholder-label">Savings</div>
+                            <div class="placeholder-value"></div>
+                        </div>
+                        <div class="placeholder-card">
+                            <div class="placeholder-label">Travel Time</div>
+                            <div class="placeholder-value"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Panel (hidden until data arrives) -->
+                <div id="resultsPanel" style="display: none;">
+                    <!-- Metrics Grid -->
+                    <div class="card metrics-grid" id="metricsGrid"></div>
+                    <div class="card result-summary" id="resultSummary"></div>
+
+                    <!-- Route Details Table -->
+                    <div class="card">
+                        <div class="table-title">🗺️ Route Details</div>
+                        <div class="table-container">
+                            <table id="routeTable">
+                                <thead>
+                                    <tr>
+                                        <th>Stop</th>
+                                        <th>Arrival</th>
+                                        <th>Start Service</th>
+                                        <th>Finish</th>
+                                        <th>Wait</th>
+                                        <th>Late</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="routeBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Visualization -->
+                    <div class="card">
+                        <div class="visualization-title">📍 Route Visualization</div>
+                        <div id="visualization"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const THEME_STORAGE_KEY = 'routemind-theme';
+        const AUTH_TOKEN_STORAGE_KEY = 'routemind-auth-token';
+        const THEME_READY_CLASS = 'theme-ready';
+        const THEME_SWITCHING_CLASS = 'theme-switching';
+        const THEME_SWITCH_SOFTEN_MS = 180;
+        const DEFAULT_STOPS = [
+            { id: 1, x: 5, y: 5, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 },
+            { id: 2, x: 10, y: 8, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 2 },
+            { id: 3, x: 15, y: 10, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 }
+        ];
+        const SAMPLE_ROUTE_PAYLOAD = {
+            depot: { x: 0, y: 0 },
+            stops: [
+                { id: 1, x: 2, y: 3, window_start: 2, window_end: 10, service_time: 1, priority: 3 },
+                { id: 2, x: 5, y: 2, window_start: 0, window_end: 8, service_time: 1, priority: 5 },
+                { id: 3, x: 6, y: 6, window_start: 5, window_end: 15, service_time: 1, priority: 2 },
+                { id: 4, x: 8, y: 3, window_start: 3, window_end: 12, service_time: 1, priority: 4 }
+            ],
+            max_shift_time: 25,
+            weights: {
+                w_dist: 1,
+                w_wait: 0.5,
+                w_late: 3,
+                w_priority: 2,
+                w_shift: 4
+            },
+            optimization: {
+                algorithm: '2opt',
+                max_iterations: 250,
+                no_improvement_limit: 40,
+                time_limit: null
+            }
+        };
+        let stops = structuredClone(DEFAULT_STOPS);
+        let currentUser = null;
+        let currentScenarioId = null;
+        let themeSwitchTimeoutId = null;
+
+        function getStoredToken() {
+            return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+        }
+
+        function setAuthSession(token, user) {
+            localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+            currentUser = user;
+            updateAuthUI();
+            refreshScenarios();
+            refreshHistory();
+        }
+
+        function clearAuthSession() {
+            localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+            currentUser = null;
+            currentScenarioId = null;
+            updateAuthUI();
+            renderScenarioList([]);
+            renderHistoryList([]);
+        }
+
+        function updateAuthUI() {
+            const authActions = document.getElementById('authActions');
+            const authUser = document.getElementById('authUser');
+            const authUserName = document.getElementById('authUserName');
+
+            if (currentUser) {
+                authActions.classList.add('hidden');
+                authUser.classList.remove('hidden');
+                authUserName.textContent = currentUser.username;
+            } else {
+                authActions.classList.remove('hidden');
+                authUser.classList.add('hidden');
+                authUserName.textContent = '';
+            }
+        }
+
+        function buildAuthHeaders(headers = {}) {
+            const token = getStoredToken();
+            if (!token) {
+                return headers;
+            }
+
+            return {
+                ...headers,
+                Authorization: `Bearer ${token}`
+            };
+        }
+
+        async function readApiError(response) {
+            let detail = `HTTP ${response.status}`;
+
+            try {
+                const data = await response.json();
+                if (typeof data.detail === 'string') {
+                    detail = data.detail;
+                } else if (Array.isArray(data.detail)) {
+                    detail = data.detail.map(item => item.msg).filter(Boolean).join(' ');
+                }
+            } catch (error) {
+                // Ignore parse failures and fall back to the status-based message.
+            }
+
+            return detail;
+        }
+
+        function updateThemeToggle(theme) {
+            const toggle = document.getElementById('themeToggle');
+            const icon = document.getElementById('themeToggleIcon');
+            const text = document.getElementById('themeToggleText');
+            const isDark = theme === 'dark';
+
+            toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+            icon.textContent = isDark ? '☀️' : '🌙';
+            text.textContent = isDark ? 'Light mode' : 'Dark mode';
+        }
+
+        function setTheme(theme, options = {}) {
+            const { skipTransition = false } = options;
+            const isDark = theme === 'dark';
+            const body = document.body;
+
+            const applyTheme = () => {
+                body.classList.toggle('dark-mode', isDark);
+                document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+                localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+                updateThemeToggle(isDark ? 'dark' : 'light');
+
+                if (window.latestOptimizationResult && document.getElementById('resultsPanel').style.display !== 'none') {
+                    drawVisualization(window.latestOptimizationResult);
+                }
+            };
+
+            const shouldAnimate = !skipTransition && body.classList.contains(THEME_READY_CLASS);
+            window.clearTimeout(themeSwitchTimeoutId);
+
+            if (!shouldAnimate) {
+                body.classList.remove(THEME_SWITCHING_CLASS);
+                applyTheme();
+                return;
+            }
+
+            body.classList.add(THEME_SWITCHING_CLASS);
+            window.requestAnimationFrame(() => {
+                applyTheme();
+                themeSwitchTimeoutId = window.setTimeout(() => {
+                    body.classList.remove(THEME_SWITCHING_CLASS);
+                }, THEME_SWITCH_SOFTEN_MS);
+            });
+        }
+
+        function toggleTheme() {
+            const nextTheme = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+            setTheme(nextTheme);
+        }
+
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+            setTheme(savedTheme || 'light', { skipTransition: true });
+            window.requestAnimationFrame(() => {
+                document.body.classList.add(THEME_READY_CLASS);
+            });
+        }
+
+        function clearAuthMessage() {
+            document.getElementById('authError').style.display = 'none';
+            document.getElementById('authSuccess').style.display = 'none';
+        }
+
+        function showAuthMessage(type, message) {
+            clearAuthMessage();
+            const elem = document.getElementById(type);
+            elem.textContent = message;
+            elem.style.display = 'block';
+        }
+
+        function switchAuthMode(mode) {
+            const loginActive = mode === 'login';
+            document.getElementById('loginTab').classList.toggle('active', loginActive);
+            document.getElementById('registerTab').classList.toggle('active', !loginActive);
+            document.getElementById('loginForm').classList.toggle('active', loginActive);
+            document.getElementById('registerForm').classList.toggle('active', !loginActive);
+            clearAuthMessage();
+        }
+
+        function openAuthModal(mode = 'login') {
+            switchAuthMode(mode);
+            document.getElementById('authModal').classList.add('open');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.remove('open');
+            clearAuthMessage();
+        }
+
+        async function initializeAuth() {
+            updateAuthUI();
+
+            const token = getStoredToken();
+            if (!token) {
+                renderScenarioList([]);
+                renderHistoryList([]);
+                return;
+            }
+
+            try {
+                const response = await fetch('/me', {
+                    headers: buildAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                currentUser = await response.json();
+                updateAuthUI();
+                await Promise.all([refreshScenarios(), refreshHistory()]);
+            } catch (error) {
+                clearAuthSession();
+            }
+        }
+
+        function buildRoutePayload() {
+            const timeLimitValue = document.getElementById('timeLimit').value;
+
+            return {
+                depot: {
+                    x: parseFloat(document.getElementById('depotX').value),
+                    y: parseFloat(document.getElementById('depotY').value)
+                },
+                stops: stops.map(s => ({
+                    id: s.id,
+                    x: s.x,
+                    y: s.y,
+                    window_start: s.windowStart,
+                    window_end: s.windowEnd,
+                    service_time: s.serviceTime,
+                    priority: s.priority
+                })),
+                max_shift_time: parseFloat(document.getElementById('maxShiftTime').value),
+                weights: {
+                    w_dist: parseFloat(document.getElementById('weightDistance').value),
+                    w_wait: parseFloat(document.getElementById('weightWait').value),
+                    w_late: parseFloat(document.getElementById('weightLate').value),
+                    w_priority: parseFloat(document.getElementById('weightPriority').value),
+                    w_shift: parseFloat(document.getElementById('weightShift').value)
+                },
+                optimization: {
+                    algorithm: document.getElementById('algorithm').value,
+                    max_iterations: parseInt(document.getElementById('maxIterations').value, 10),
+                    no_improvement_limit: parseInt(document.getElementById('noImprovementLimit').value, 10),
+                    time_limit: timeLimitValue === '' ? null : parseFloat(timeLimitValue)
+                }
+            };
+        }
+
+        function applyRoutePayload(payload) {
+            document.getElementById('depotX').value = payload.depot.x;
+            document.getElementById('depotY').value = payload.depot.y;
+            document.getElementById('maxShiftTime').value = payload.max_shift_time;
+            document.getElementById('algorithm').value = payload.optimization?.algorithm || '2opt';
+            document.getElementById('maxIterations').value = payload.optimization?.max_iterations ?? 500;
+            document.getElementById('noImprovementLimit').value = payload.optimization?.no_improvement_limit ?? 100;
+            document.getElementById('timeLimit').value = payload.optimization?.time_limit ?? '';
+            document.getElementById('weightDistance').value = payload.weights?.w_dist ?? 1;
+            document.getElementById('weightWait').value = payload.weights?.w_wait ?? 0.5;
+            document.getElementById('weightLate').value = payload.weights?.w_late ?? 2;
+            document.getElementById('weightPriority').value = payload.weights?.w_priority ?? 1;
+            document.getElementById('weightShift').value = payload.weights?.w_shift ?? 4;
+
+            stops = payload.stops.map(stop => ({
+                id: stop.id,
+                x: stop.x,
+                y: stop.y,
+                windowStart: stop.window_start,
+                windowEnd: stop.window_end,
+                serviceTime: stop.service_time,
+                priority: stop.priority
+            }));
+
+            renderStops();
+        }
+
+        function requireAuth(actionLabel) {
+            if (getStoredToken()) {
+                return true;
+            }
+
+            showMessage('error', `${actionLabel} requires a signed-in account.`);
+            openAuthModal('login');
+            return false;
+        }
+
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        }
+
+        function renderScenarioList(items) {
+            const list = document.getElementById('scenarioList');
+
+            if (!currentUser) {
+                list.innerHTML = '<div class="collection-empty">Sign in to save and reload scenarios.</div>';
+                return;
+            }
+
+            if (!items.length) {
+                list.innerHTML = '<div class="collection-empty">No saved scenarios yet.</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => `
+                <div class="collection-item">
+                    <div class="collection-item-head">
+                        <div>
+                            <div class="collection-item-title">${item.name}</div>
+                            <div class="collection-item-meta">${item.stop_count} stops · Updated ${formatTimestamp(item.updated_at)}</div>
+                        </div>
+                        <div class="collection-item-actions">
+                            <button class="btn btn-secondary btn-small" onclick="loadScenario(${item.id})">Load</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteScenario(${item.id})">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderHistoryList(items) {
+            const list = document.getElementById('historyList');
+
+            if (!currentUser) {
+                list.innerHTML = '<div class="collection-empty">Sign in to see optimization history.</div>';
+                return;
+            }
+
+            if (!items.length) {
+                list.innerHTML = '<div class="collection-empty">No optimization runs recorded yet.</div>';
+                return;
+            }
+
+            list.innerHTML = items.map(item => `
+                <div class="collection-item">
+                    <div class="collection-item-head">
+                        <div>
+                            <div class="collection-item-title">${item.scenario_name || 'Ad hoc route'} · ${item.algorithm_used}</div>
+                            <div class="collection-item-meta">
+                                Cost ${item.optimized_cost.toFixed(2)} · ${item.stop_count} stops · ${item.feasible ? 'Feasible' : 'Infeasible'}<br>
+                                ${formatTimestamp(item.created_at)}
+                            </div>
+                        </div>
+                        <div class="collection-item-actions">
+                            <button class="btn btn-secondary btn-small" onclick="loadHistory(${item.id})">Load</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function refreshScenarios() {
+            if (!currentUser) {
+                renderScenarioList([]);
+                return;
+            }
+
+            try {
+                const response = await fetch('/scenarios', {
+                    headers: buildAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    clearAuthSession();
+                    throw new Error('Session expired. Please sign in again.');
+                }
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                renderScenarioList(await response.json());
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function refreshHistory() {
+            if (!currentUser) {
+                renderHistoryList([]);
+                return;
+            }
+
+            try {
+                const response = await fetch('/history?limit=12', {
+                    headers: buildAuthHeaders()
+                });
+
+                if (response.status === 401) {
+                    clearAuthSession();
+                    throw new Error('Session expired. Please sign in again.');
+                }
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                renderHistoryList(await response.json());
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        function renderStops() {
+            const list = document.getElementById('stopsList');
+            if (stops.length === 0) {
+                list.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = stops.map((stop, idx) => `
+                <div class="stop-card">
+                    <div class="stop-header">
+                        <span class="stop-id">Stop ${stop.id}</span>
+                        <button class="stop-remove-btn" onclick="removeStop(${idx})">Remove</button>
+                    </div>
+                    <div class="stop-grid">
+                        <div class="stop-grid-col">
+                            <label>X</label>
+                            <input type="number" value="${stop.x}" placeholder="X" step="0.1" 
+                                onchange="stops[${idx}].x = parseFloat(this.value)">
+                        </div>
+                        <div class="stop-grid-col">
+                            <label>Y</label>
+                            <input type="number" value="${stop.y}" placeholder="Y" step="0.1" 
+                                onchange="stops[${idx}].y = parseFloat(this.value)">
+                        </div>
+                        <div class="stop-grid-col">
+                            <label>W. Start</label>
+                            <input type="number" value="${stop.windowStart}" placeholder="W.Start" 
+                                onchange="stops[${idx}].windowStart = parseFloat(this.value)">
+                        </div>
+                        <div class="stop-grid-col">
+                            <label>W. End</label>
+                            <input type="number" value="${stop.windowEnd}" placeholder="W.End" 
+                                onchange="stops[${idx}].windowEnd = parseFloat(this.value)">
+                        </div>
+                        <div class="stop-grid-col">
+                            <label>Service</label>
+                            <input type="number" value="${stop.serviceTime}" placeholder="Service" step="0.1"
+                                onchange="stops[${idx}].serviceTime = parseFloat(this.value)">
+                        </div>
+                        <div class="stop-grid-col">
+                            <label>Priority</label>
+                            <input type="number" value="${stop.priority}" placeholder="Prio" min="1" max="5"
+                                onchange="stops[${idx}].priority = parseInt(this.value)">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addStop() {
+            const newId = Math.max(...stops.map(s => s.id), 0) + 1;
+            stops.push({
+                id: newId,
+                x: Math.random() * 20,
+                y: Math.random() * 20,
+                windowStart: 0,
+                windowEnd: 100,
+                serviceTime: 5,
+                priority: 1
+            });
+            renderStops();
+        }
+
+        function removeStop(idx) {
+            stops.splice(idx, 1);
+            renderStops();
+        }
+
+        function clearForm() {
+            document.getElementById('depotX').value = 0;
+            document.getElementById('depotY').value = 0;
+            document.getElementById('maxShiftTime').value = 480;
+            document.getElementById('algorithm').value = '2opt';
+            document.getElementById('maxIterations').value = 500;
+            document.getElementById('noImprovementLimit').value = 100;
+            document.getElementById('timeLimit').value = '';
+            document.getElementById('weightDistance').value = 1;
+            document.getElementById('weightWait').value = 0.5;
+            document.getElementById('weightLate').value = 2;
+            document.getElementById('weightPriority').value = 1;
+            document.getElementById('weightShift').value = 4;
+            document.getElementById('scenarioName').value = '';
+            document.getElementById('resultsPanel').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+            currentScenarioId = null;
+            window.latestOptimizationResult = null;
+            stops = structuredClone(DEFAULT_STOPS);
+            renderStops();
+        }
+
+        function clearLoadedHistory() {
+            currentScenarioId = null;
+            document.getElementById('scenarioName').value = '';
+            showMessage('success', 'Loaded scenario and history state cleared.');
+        }
+
+        function loadSampleScenario() {
+            applyRoutePayload(SAMPLE_ROUTE_PAYLOAD);
+            currentScenarioId = null;
+            document.getElementById('scenarioName').value = 'Sample route';
+            showMessage('success', 'Sample data loaded into the form.');
+        }
+
+        async function saveScenario() {
+            if (!requireAuth('Saving scenarios')) {
+                return;
+            }
+
+            const name = document.getElementById('scenarioName').value.trim();
+            if (!name) {
+                showMessage('error', 'Enter a scenario name before saving.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/scenarios', {
+                    method: 'POST',
+                    headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({
+                        name,
+                        route: buildRoutePayload()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const scenario = await response.json();
+                currentScenarioId = scenario.id;
+                document.getElementById('scenarioName').value = scenario.name;
+                await refreshScenarios();
+                showMessage('success', `Scenario "${scenario.name}" saved.`);
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function loadScenario(id) {
+            if (!requireAuth('Loading scenarios')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/scenarios/${id}`, {
+                    headers: buildAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const scenario = await response.json();
+                currentScenarioId = scenario.id;
+                document.getElementById('scenarioName').value = scenario.name;
+                applyRoutePayload(scenario.route);
+                showMessage('success', `Scenario "${scenario.name}" loaded.`);
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function deleteScenario(id) {
+            if (!requireAuth('Deleting scenarios')) {
+                return;
+            }
+
+            if (!window.confirm('Delete this saved scenario?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/scenarios/${id}`, {
+                    method: 'DELETE',
+                    headers: buildAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                if (currentScenarioId === id) {
+                    currentScenarioId = null;
+                    document.getElementById('scenarioName').value = '';
+                }
+
+                await refreshScenarios();
+                showMessage('success', 'Scenario deleted.');
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function loadHistory(id) {
+            if (!requireAuth('Loading history')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/history/${id}`, {
+                    headers: buildAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const entry = await response.json();
+                currentScenarioId = entry.scenario_id || null;
+                document.getElementById('scenarioName').value = entry.scenario_name || '';
+                applyRoutePayload(entry.request);
+                displayResults(entry.response);
+                showMessage('success', 'Optimization run restored from history.');
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        function showMessage(type, message) {
+            const elem = document.getElementById(type);
+            elem.textContent = message;
+            elem.style.display = 'block';
+            setTimeout(() => elem.style.display = 'none', 6000);
+        }
+
+        function exportLatestResult() {
+            if (!window.latestOptimizationResult) {
+                showMessage('error', 'Run an optimization first so there is something to export.');
+                return;
+            }
+
+            const payload = {
+                exported_at: new Date().toISOString(),
+                scenario_id: currentScenarioId,
+                scenario_name: document.getElementById('scenarioName').value.trim() || null,
+                route_request: buildRoutePayload(),
+                optimization_result: window.latestOptimizationResult
+            };
+
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'routemind-result.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function handleLoginSubmit(event) {
+            event.preventDefault();
+
+            const identity = document.getElementById('loginIdentity').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!identity || !password) {
+                showAuthMessage('authError', 'Enter your email or username and password.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identity, password })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const result = await response.json();
+                setAuthSession(result.access_token, result.user);
+                document.getElementById('loginForm').reset();
+                closeAuthModal();
+                showMessage('success', `Welcome back, ${result.user.username}!`);
+            } catch (error) {
+                showAuthMessage('authError', error.message);
+            }
+        }
+
+        async function handleRegisterSubmit(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('registerUsername').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+
+            if (!username || !email || !password) {
+                showAuthMessage('authError', 'Complete username, email, and password to register.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const result = await response.json();
+                setAuthSession(result.access_token, result.user);
+                document.getElementById('registerForm').reset();
+                closeAuthModal();
+                showMessage('success', `Account created. Welcome to RouteMind, ${result.user.username}!`);
+            } catch (error) {
+                showAuthMessage('authError', error.message);
+            }
+        }
+
+        function logout() {
+            clearAuthSession();
+            closeAuthModal();
+            showMessage('success', 'You have been logged out.');
+        }
+
+        async function optimizeRoute() {
+            if (stops.length === 0) {
+                showMessage('error', 'Add at least one stop');
+                return;
+            }
+
+            if (!requireAuth('Route optimization')) {
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+
+            try {
+                const payload = buildRoutePayload();
+                const optimizeUrl = currentScenarioId ? `/optimize?scenario_id=${encodeURIComponent(currentScenarioId)}` : '/optimize';
+
+                const response = await fetch(optimizeUrl, {
+                    method: 'POST',
+                    headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    clearAuthSession();
+                    throw new Error('Session expired. Please sign in again.');
+                }
+
+                if (!response.ok) {
+                    throw new Error(await readApiError(response));
+                }
+
+                const result = await response.json();
+                displayResults(result);
+                await refreshHistory();
+                showMessage('success', 'Route optimized successfully!');
+            } catch (error) {
+                showMessage('error', `Error: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResults(result) {
+            window.latestOptimizationResult = result;
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsPanel').style.display = 'block';
+
+            const savingsValue = `${result.improvement_percent.toFixed(1)}%`;
+            const savingsType = result.improvement_percent > 0 ? 'positive' : 'warning';
+
+            const metrics = [
+                { label: 'Initial Cost', value: result.initial_cost.toFixed(2), type: 'neutral' },
+                { label: 'Optimized Cost', value: result.optimized_cost.toFixed(2), type: 'neutral' },
+                { label: 'Improvement', value: savingsValue, type: savingsType },
+                { label: 'Feasible', value: result.feasible ? 'Yes' : 'No', type: result.feasible ? 'positive' : 'warning' },
+                { label: 'Travel Time', value: result.total_travel_time.toFixed(0) + 'm', type: 'neutral' },
+                { label: 'Wait Time', value: result.total_wait_time.toFixed(0) + 'm', type: 'neutral' },
+                { label: 'Lateness', value: result.total_lateness.toFixed(1) + 'm', type: 'neutral' },
+                { label: 'Shift Overrun', value: result.shift_overrun.toFixed(1) + 'm', type: result.shift_overrun > 0 ? 'warning' : 'neutral' },
+                { label: 'Penalty', value: result.total_penalty.toFixed(2), type: 'neutral' },
+                { label: 'Finish Time', value: result.finish_time.toFixed(1) + 'm', type: 'neutral' }
+            ];
+
+            document.getElementById('metricsGrid').innerHTML = metrics.map(m => `
+                <div class="metric-card">
+                    <div class="metric-label">${m.label}</div>
+                    <div class="metric-value ${m.type}">${m.value}</div>
+                </div>
+            `).join('');
+
+            const summary = [
+                { label: 'Algorithm', value: result.algorithm_used },
+                { label: 'Iterations', value: result.iterations_used },
+                { label: 'Stopped By', value: result.stopped_by.replaceAll('_', ' ') },
+                { label: 'Priority-Adjusted Lateness', value: result.priority_adjusted_lateness.toFixed(1) }
+            ];
+
+            document.getElementById('resultSummary').innerHTML = summary.map(item => `
+                <div class="summary-chip">
+                    <div class="summary-chip-label">${item.label}</div>
+                    <div class="summary-chip-value">${item.value}</div>
+                </div>
+            `).join('');
+
+            document.getElementById('routeBody').innerHTML = result.visits.map(v => `
+                <tr>
+                    <td>${v.stop_id}</td>
+                    <td>${v.arrival.toFixed(1)}</td>
+                    <td>${v.start_service.toFixed(1)}</td>
+                    <td>${v.finish.toFixed(1)}</td>
+                    <td>${v.wait.toFixed(1)}</td>
+                    <td>${v.lateness.toFixed(1)}</td>
+                </tr>
+            `).join('');
+
+            drawVisualization(result);
+        }
+
+        function drawVisualization(result) {
+            if (!result) {
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 520;
+            canvas.height = 360;
+            const ctx = canvas.getContext('2d');
+            const isDark = document.body.classList.contains('dark-mode');
+
+            const depot = {
+                x: parseFloat(document.getElementById('depotX').value),
+                y: parseFloat(document.getElementById('depotY').value)
+            };
+
+            const allPoints = [depot, ...stops];
+            const maxX = Math.max(...allPoints.map(p => p.x)) || 20;
+            const maxY = Math.max(...allPoints.map(p => p.y)) || 20;
+            const padding = 50;
+            const scale = Math.min((canvas.width - 2 * padding) / maxX, (canvas.height - 2 * padding) / maxY);
+
+            const toCanvas = (point) => ({
+                x: padding + point.x * scale,
+                y: padding + point.y * scale
+            });
+
+            const palette = isDark ? {
+                canvasBackground: '#0F172A',
+                grid: '#22304a',
+                border: '#475569',
+                route: '#38BDF8',
+                depotGlow: 'rgba(249, 115, 22, 0.28)',
+                shadow: 'rgba(15, 23, 42, 0.45)',
+                stopColor: '#2DD4BF'
+            } : {
+                canvasBackground: '#F7F9FC',
+                grid: '#e0e7f1',
+                border: '#DDE5EC',
+                route: '#14B8E6',
+                depotGlow: 'rgba(249, 115, 22, 0.2)',
+                shadow: 'rgba(0, 0, 0, 0.08)',
+                stopColor: '#14C8B0'
+            };
+
+            // Draw subtle page-like background
+            ctx.fillStyle = palette.canvasBackground;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid with better visibility
+            ctx.strokeStyle = palette.grid;
+            ctx.lineWidth = 0.8;
+            const gridSpacing = 5;
+            
+            // Vertical grid lines
+            for (let i = 0; i <= maxX; i += gridSpacing) {
+                const p = toCanvas({ x: i, y: 0 });
+                ctx.beginPath();
+                ctx.moveTo(p.x, padding);
+                ctx.lineTo(p.x, canvas.height - padding);
+                ctx.stroke();
+            }
+            
+            // Horizontal grid lines
+            for (let i = 0; i <= maxY; i += gridSpacing) {
+                const p = toCanvas({ x: 0, y: i });
+                ctx.beginPath();
+                ctx.moveTo(padding, p.y);
+                ctx.lineTo(canvas.width - padding, p.y);
+                ctx.stroke();
+            }
+
+            // Draw plot area border with subtle shadow effect
+            ctx.strokeStyle = palette.border;
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(padding - 1, padding - 1, canvas.width - 2 * padding + 2, canvas.height - 2 * padding + 2);
+
+            // Draw route with better styling
+            ctx.strokeStyle = palette.route;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.globalAlpha = 0.85;
+            
+            ctx.beginPath();
+            const depotCanvas = toCanvas(depot);
+            ctx.moveTo(depotCanvas.x, depotCanvas.y);
+
+            result.optimized_route_order.forEach(id => {
+                const stop = stops.find(s => s.id === id);
+                if (stop) {
+                    const point = toCanvas(stop);
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+            ctx.lineTo(depotCanvas.x, depotCanvas.y);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+
+            // Draw depot with enhanced styling
+            ctx.fillStyle = '#FF8A34';
+            ctx.beginPath();
+            ctx.arc(depotCanvas.x, depotCanvas.y, 11, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            
+            // Depot glow effect
+            ctx.strokeStyle = palette.depotGlow;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw stops with enhanced styling
+            const colors = [palette.stopColor, palette.stopColor, palette.stopColor, palette.stopColor];
+            result.optimized_route_order.forEach((id, idx) => {
+                const stop = stops.find(s => s.id === id);
+                if (stop) {
+                    const point = toCanvas(stop);
+                    
+                    // Draw shadow
+                    ctx.fillStyle = palette.shadow;
+                    ctx.beginPath();
+                    ctx.arc(point.x + 1, point.y + 1, 8.5, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Draw stop circle
+                    ctx.fillStyle = colors[idx % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Draw border
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Draw number
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(idx + 1, point.x, point.y);
+                }
+            });
+
+            document.getElementById('visualization').innerHTML = '';
+            document.getElementById('visualization').appendChild(canvas);
+
+            // Add enhanced legend
+            const legend = document.createElement('div');
+            legend.className = 'legend';
+            legend.innerHTML = `
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #FF8A34; box-shadow: 0 2px 4px rgba(255, 138, 52, 0.24);"></div>
+                    <span>Depot</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #14C8B0; box-shadow: 0 2px 4px rgba(20, 200, 176, 0.2);"></div>
+                    <span>Stops</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background: #14B8E6; width: 12px; height: 2px; border-radius: 1px;"></div>
+                    <span>Route</span>
+                </div>
+            `;
+            document.getElementById('visualization').appendChild(legend);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeAuthModal();
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
+        document.getElementById('registerForm').addEventListener('submit', handleRegisterSubmit);
+
+        initializeTheme();
+        updateAuthUI();
+        initializeAuth();
+        renderStops();
+    </script>
+</body>
+</html>
