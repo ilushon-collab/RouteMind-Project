@@ -14,11 +14,11 @@ TEST_AUTH_DIR.mkdir(parents=True, exist_ok=True)
 os.environ["ROUTEMIND_AUTH_DIR"] = str(TEST_AUTH_DIR)
 os.environ["ROUTEMIND_SECRET_KEY"] = "routemind-test-secret"
 
-from fastapi import HTTPException
+from fastapi import HTTPException  # noqa: E402
 
-from app import main
-from app.auth import reset_auth_caches
-from app.models import (
+from app import main  # noqa: E402
+from app.auth import reset_auth_caches  # noqa: E402
+from app.models import (  # noqa: E402
     LoginRequest,
     OptimizationConfig,
     RegisterRequest,
@@ -31,8 +31,8 @@ from app.models import (
 
 
 reset_auth_caches()
-from app.auth import init_auth_storage
-from app.storage import init_app_storage
+from app.auth import init_auth_storage  # noqa: E402
+from app.storage import init_app_storage  # noqa: E402
 init_auth_storage()
 init_app_storage()
 
