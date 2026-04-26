@@ -1,5 +1,6 @@
 import logging
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
@@ -57,7 +58,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger("routemind")
 
-app = FastAPI(title="RouteMind API", version="3.0")
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    init_auth_storage()
+    init_app_storage()
+    yield
+
+
+app = FastAPI(title="RouteMind API", version="3.0", lifespan=lifespan)
 bearer_scheme = HTTPBearer(auto_error=False)
 rate_limiter = InMemoryRateLimiter()
 
@@ -72,12 +81,6 @@ app.add_middleware(
 
 static_dir = Path(__file__).parent.parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
-
-@app.on_event("startup")
-def startup() -> None:
-    init_auth_storage()
-    init_app_storage()
 
 
 @app.middleware("http")

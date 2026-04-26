@@ -29,7 +29,10 @@ from app.models import (
 
 
 reset_auth_caches()
-main.startup()
+from app.auth import init_auth_storage
+from app.storage import init_app_storage
+init_auth_storage()
+init_app_storage()
 
 
 class DummyRequest:

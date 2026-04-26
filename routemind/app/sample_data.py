@@ -11,6 +11,7 @@ sample_request = {
         "w_dist": 1.0,
         "w_wait": 0.5,
         "w_late": 3.0,
-        "w_priority": 2.0
+        "w_priority": 2.0,
+        "w_shift": 4.0
     }
 }
