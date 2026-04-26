@@ -73,7 +73,6 @@ def save_scenario(user_id: int, name: str, route: RouteRequest) -> ScenarioDetai
                 (payload_json, stop_count, timestamp, existing["id"], user_id),
             )
             connection.commit()
-            created_at = existing["created_at"]
             scenario_id = int(existing["id"])
         else:
             cursor = connection.execute(
@@ -84,7 +83,6 @@ def save_scenario(user_id: int, name: str, route: RouteRequest) -> ScenarioDetai
                 (user_id, normalized_name, payload_json, stop_count, timestamp, timestamp),
             )
             connection.commit()
-            created_at = timestamp
             scenario_id = int(cursor.lastrowid)
 
     return get_scenario(user_id, scenario_id)

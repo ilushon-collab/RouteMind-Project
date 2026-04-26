@@ -302,5 +302,5 @@ def _b64decode_to_text(value: str) -> str:
 
 
 def _configure_connection(connection: sqlite3.Connection) -> None:
-    connection.execute("PRAGMA journal_mode=MEMORY")
+    connection.execute("PRAGMA journal_mode=WAL")
     connection.execute("PRAGMA synchronous=NORMAL")

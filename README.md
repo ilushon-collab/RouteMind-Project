@@ -69,7 +69,6 @@ RouteMind-Project/
     │   ├── evaluator.py     # Route cost evaluation (travel time, wait, lateness, penalties)
     │   ├── rate_limit.py    # In-memory sliding-window rate limiter
     │   ├── utils.py         # Distance helpers, distance-matrix builder
-    │   └── sample_data.py   # Example route data
     ├── static/
     │   └── index.html       # Browser UI
     ├── tests/
@@ -103,6 +102,20 @@ uvicorn app.main:app --reload
 The API is now available at `http://localhost:8000`.  
 Open `http://localhost:8000/` in your browser to use the web UI.  
 Interactive API docs are at `http://localhost:8000/docs`.
+
+### Run with Docker
+
+```bash
+# From the repository root
+docker build -t routemind .
+docker run -p 8000:8000 routemind
+```
+
+Or with Docker Compose:
+
+```bash
+docker compose up
+```
 
 ---
 
@@ -277,7 +290,12 @@ total_cost = w_dist × travel_distance
            + w_shift × shift_overrun
 ```
 
-where `priority_adjusted_lateness` scales each stop's lateness by `(priority / max_priority) ^ w_priority`.
+where `priority_adjusted_lateness = Σ lateness_i × priority_factor(priority_i)` and
+`priority_factor(p) = 1 + (p − 1) × 0.5 × max(w_priority, 0)`.
+
+A stop with `priority=1` always has a factor of **1.0** (no extra penalty); each additional
+priority level adds `0.5 × w_priority` to the multiplier, so a stop with `priority=5` and
+`w_priority=2.0` carries a factor of **5.0** relative to a factor of 1.0 for `priority=1`.
 
 ---
 
