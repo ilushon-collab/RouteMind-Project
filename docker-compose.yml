@@ -1,0 +1,12 @@
+services:
+  routemind:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ROUTEMIND_SECRET_KEY=${ROUTEMIND_SECRET_KEY:-}
+    volumes:
+      - routemind_data:/app/auth_store
+
+volumes:
+  routemind_data:
