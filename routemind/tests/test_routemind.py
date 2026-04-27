@@ -5,15 +5,15 @@ import uuid
 from pathlib import Path
 from types import SimpleNamespace
 
+from fastapi import HTTPException
+from pydantic import ValidationError
+
 
 TEST_AUTH_DIR = Path(__file__).resolve().parent / ".test_auth_store"
 shutil.rmtree(TEST_AUTH_DIR, ignore_errors=True)
 TEST_AUTH_DIR.mkdir(parents=True, exist_ok=True)
 os.environ["ROUTEMIND_AUTH_DIR"] = str(TEST_AUTH_DIR)
 os.environ["ROUTEMIND_SECRET_KEY"] = "routemind-test-secret"
-
-from fastapi import HTTPException  # noqa: E402
-from pydantic import ValidationError  # noqa: E402
 
 from app import main  # noqa: E402
 from app.auth import reset_auth_caches  # noqa: E402
