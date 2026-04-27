@@ -1638,9 +1638,9 @@
         }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEg=" crossorigin=""></script>
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEg=" crossorigin="anonymous"></script>
 </head>
 <body>
     <!-- Header -->
@@ -1998,7 +1998,10 @@
             }
         };
         // London landmarks sample for real-map demonstration.
-        // x = lng, y = lat so the optimizer's Euclidean distances approximate real distances.
+        // x and y mirror lng and lat respectively so that the optimizer's Euclidean
+        // distance calculation uses geographic coordinates as a reasonable proxy for
+        // real-world distances within a small area. lat/lng are the separate fields
+        // used by the Leaflet map renderer.
         const SAMPLE_MAP_PAYLOAD = {
             depot: { x: -0.1246, y: 51.5007, lat: 51.5007, lng: -0.1246 },
             stops: [
@@ -2055,6 +2058,11 @@
                 labelsUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
                 labelsAttribution: ''
             }
+        };
+
+        const OSRM_SERVICES = {
+            driving: 'https://routing.openstreetmap.de/routed-car/route/v1/driving',
+            walking: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
         };
 
         function getStoredToken() {
@@ -2958,9 +2966,7 @@
         }
 
         async function fetchOSRMRoute(waypoints, mode) {
-            const service = mode === 'walking'
-                ? 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
-                : 'https://routing.openstreetmap.de/routed-car/route/v1/driving';
+            const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
             const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
             const resp = await fetch(`${service}/${coords}?overview=full&geometries=geojson`);
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
@@ -3007,10 +3013,10 @@
             try {
                 routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode);
                 mapError.style.display = 'none';
-            } catch (err) {
+            } catch (_err) {
                 // Graceful fallback: draw straight lines between waypoints
                 routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
-                mapError.textContent = `⚠️ Live routing unavailable (${err.message}). Showing straight-line route.`;
+                mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
                 mapError.style.display = 'block';
             }
 
