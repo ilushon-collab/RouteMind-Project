@@ -2613,7 +2613,7 @@
                 } else if (Array.isArray(data.detail)) {
                     detail = data.detail.map(item => item.msg).filter(Boolean).join(' ');
                 } else if (data.detail !== undefined) {
-                    detail = `Server error (HTTP ${response.status})`;
+                    detail = `Unexpected server response (HTTP ${response.status}). Please try again.`;
                 }
             } catch (_) { /* ignore */ }
             return detail;
@@ -3490,7 +3490,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identity, password })
                 });
-            } catch (_) {
+            } catch (error) {
+                console.error('Login network error:', error);
                 showAuthMessage('authError', 'Cannot connect to the server. Check your connection and try again.');
                 return;
             }
@@ -3522,7 +3523,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email, password })
                 });
-            } catch (_) {
+            } catch (error) {
+                console.error('Register network error:', error);
                 showAuthMessage('authError', 'Cannot connect to the server. Check your connection and try again.');
                 return;
             }
