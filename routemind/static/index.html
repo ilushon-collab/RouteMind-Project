@@ -2482,12 +2482,12 @@
                         <div class="stop-grid-col">
                             <label>Lat <span class="field-optional">map</span></label>
                             <input type="number" value="${stop.lat ?? ''}" placeholder="e.g. 51.50" step="0.0001"
-                                onchange="const v=parseFloat(this.value);stops[${idx}].lat=(this.value!==''&&isFinite(v))?v:null;">
+                                onchange="updateStopCoord(${idx}, 'lat', this.value)">
                         </div>
                         <div class="stop-grid-col">
                             <label>Lng <span class="field-optional">map</span></label>
                             <input type="number" value="${stop.lng ?? ''}" placeholder="e.g. -0.12" step="0.0001"
-                                onchange="const v=parseFloat(this.value);stops[${idx}].lng=(this.value!==''&&isFinite(v))?v:null;">
+                                onchange="updateStopCoord(${idx}, 'lng', this.value)">
                         </div>
                         <div class="stop-grid-col">
                             <label>W. Start</label>
@@ -2533,6 +2533,11 @@
         function removeStop(idx) {
             stops.splice(idx, 1);
             renderStops();
+        }
+
+        function updateStopCoord(idx, field, rawValue) {
+            const parsed = parseFloat(rawValue);
+            stops[idx][field] = (rawValue !== '' && isFinite(parsed)) ? parsed : null;
         }
 
         function clearForm() {
