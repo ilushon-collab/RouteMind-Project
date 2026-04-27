@@ -9,7 +9,7 @@ def evaluate_route(
     weights: Weights,
     distance_matrix: DistanceMatrix | None = None,
 ):
-    current = depot
+    current: Depot | Stop = depot
     current_time = 0.0
 
     visits = []
