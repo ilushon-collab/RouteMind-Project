@@ -2600,7 +2600,7 @@
 
         async function readApiError(response) {
             const STATUS_MESSAGES = {
-                405: 'Method not allowed — please ensure you are accessing the app through its own URL (not a proxy).',
+                405: 'Request rejected by the server (405). Reload the page and try again.',
                 429: 'Too many requests. Please wait a moment and try again.',
                 500: 'Internal server error. Please try again later.',
                 503: 'Service unavailable. Please try again later.',
@@ -2612,6 +2612,8 @@
                     detail = data.detail;
                 } else if (Array.isArray(data.detail)) {
                     detail = data.detail.map(item => item.msg).filter(Boolean).join(' ');
+                } else if (data.detail !== undefined) {
+                    detail = `Server error (HTTP ${response.status})`;
                 }
             } catch (_) { /* ignore */ }
             return detail;
@@ -3481,12 +3483,18 @@
                 showAuthMessage('authError', 'Enter your email or username and password.');
                 return;
             }
+            let response;
             try {
-                const response = await fetch('/login', {
+                response = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identity, password })
                 });
+            } catch (_) {
+                showAuthMessage('authError', 'Cannot connect to the server. Check your connection and try again.');
+                return;
+            }
+            try {
                 if (!response.ok) throw new Error(await readApiError(response));
                 const result = await response.json();
                 setAuthSession(result.access_token, result.user);
@@ -3507,12 +3515,18 @@
                 showAuthMessage('authError', 'Complete username, email, and password to register.');
                 return;
             }
+            let response;
             try {
-                const response = await fetch('/register', {
+                response = await fetch('/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email, password })
                 });
+            } catch (_) {
+                showAuthMessage('authError', 'Cannot connect to the server. Check your connection and try again.');
+                return;
+            }
+            try {
                 if (!response.ok) throw new Error(await readApiError(response));
                 const result = await response.json();
                 setAuthSession(result.access_token, result.user);
