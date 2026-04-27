@@ -2534,7 +2534,8 @@
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function getStoredToken() {
@@ -3534,7 +3535,7 @@
                 <div class="collection-item">
                     <div class="collection-item-head">
                         <div>
-                            <div class="collection-item-title">${escapeHtml(item.scenario_name || 'Ad hoc route')} · ${item.algorithm_used}</div>
+                            <div class="collection-item-title">${escapeHtml(item.scenario_name || 'Ad hoc route')} · ${escapeHtml(item.algorithm_used)}</div>
                             <div class="collection-item-meta">
                                 Cost ${item.optimized_cost.toFixed(2)} · ${item.stop_count} stops · ${item.feasible ? 'Feasible' : 'Infeasible'}<br>
                                 ${formatTimestamp(item.created_at)}
@@ -3817,9 +3818,9 @@
             `).join('');
 
             const summary = [
-                { label: 'Algorithm',                  value: result.algorithm_used },
+                { label: 'Algorithm',                  value: escapeHtml(result.algorithm_used) },
                 { label: 'Iterations',                 value: result.iterations_used },
-                { label: 'Stopped By',                 value: result.stopped_by.replaceAll('_', ' ') },
+                { label: 'Stopped By',                 value: escapeHtml(result.stopped_by.replaceAll('_', ' ')) },
                 { label: 'Priority-Adjusted Lateness', value: result.priority_adjusted_lateness.toFixed(1) },
             ];
 
