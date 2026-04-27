@@ -2896,7 +2896,7 @@
 
         function applyDepotGeocoords(lat, lng, label, street, city) {
             // Reject coordinates from malformed geocoder responses
-            if (!isValidCoord(lat) || !isValidCoord(lng)) {
+            if (!areValidCoords(lat, lng)) {
                 setDepotStatus(false, '⚠️ Geocoder returned invalid coordinates');
                 return;
             }
@@ -3064,7 +3064,7 @@
             if (!stops[idx]) return;
 
             // Guard: reject invalid coordinates from malformed geocoder responses
-            if (!isValidCoord(lat) || !isValidCoord(lng)) {
+            if (!areValidCoords(lat, lng)) {
                 setStopStatus(idx, false, '⚠️ Geocoder returned invalid coordinates');
                 return;
             }
@@ -3076,7 +3076,7 @@
             stops[idx].label       = label;
             stops[idx].street      = street;
             stops[idx].city        = city;
-            stops[idx].houseNumber = document.getElementById(`stopHouse_${idx}`)?.value.trim() || '';
+            stops[idx].houseNumber = document.getElementById(`stopHouse_${idx}`).value.trim();
             stops[idx].geocoded    = true;
             setStopStatus(idx, true, `✅ ${label}`);
         }
@@ -3147,17 +3147,17 @@
                         <div class="stop-timing-col">
                             <label>W. Start</label>
                             <input type="number" value="${stop.windowStart}" placeholder="0"
-                                   onchange="stops[${idx}].windowStart=parseFloat(this.value)??0">
+                                   onchange="stops[${idx}].windowStart=parseNumericField(this.value,0)">
                         </div>
                         <div class="stop-timing-col">
                             <label>W. End</label>
                             <input type="number" value="${stop.windowEnd}" placeholder="480"
-                                   onchange="stops[${idx}].windowEnd=(v=>isNaN(v)?480:v)(parseFloat(this.value))">
+                                   onchange="stops[${idx}].windowEnd=parseNumericField(this.value,480)">
                         </div>
                         <div class="stop-timing-col">
                             <label>Service (min)</label>
                             <input type="number" value="${stop.serviceTime}" placeholder="5" step="0.1"
-                                   onchange="stops[${idx}].serviceTime=Math.max(0,parseFloat(this.value)||0)">
+                                   onchange="stops[${idx}].serviceTime=Math.max(0,parseNumericField(this.value,0))">
                         </div>
                         <div class="stop-timing-col">
                             <label>Priority</label>
@@ -3216,13 +3216,13 @@
             const depotXVal   = parseFloat(document.getElementById('depotX').value);
             const depotYVal   = parseFloat(document.getElementById('depotY').value);
 
-            if (!isValidCoord(depotLatVal) || !isValidCoord(depotLngVal)) {
+            if (!areValidCoords(depotLatVal, depotLngVal)) {
                 throw new Error('Depot address has not been geocoded. Please geocode the depot first.');
             }
 
             // Validate stops
             for (const stop of stops) {
-                if (!stop.geocoded || !isValidCoord(stop.lat) || !isValidCoord(stop.lng)) {
+                if (!stop.geocoded || !areValidCoords(stop.lat, stop.lng)) {
                     throw new Error(`Stop ${stop.id} has not been geocoded. Please geocode all stops before optimizing.`);
                 }
             }
@@ -3324,7 +3324,7 @@
             document.getElementById('depotStreet').value = d.street || '';
             document.getElementById('depotHouse').value  = d.house_number || '';
 
-            const hasGeo = isValidCoord(d.lat) && isValidCoord(d.lng);
+            const hasGeo = areValidCoords(d.lat, d.lng);
             if (hasGeo) {
                 document.getElementById('depotLat').value = d.lat;
                 document.getElementById('depotLng').value = d.lng;
@@ -3352,7 +3352,7 @@
 
             // Stops
             stops = payload.stops.map(stop => {
-                const sg = isValidCoord(stop.lat) && isValidCoord(stop.lng);
+                const sg = areValidCoords(stop.lat, stop.lng);
                 return {
                     id: stop.id,
                     city: stop.city || '',
@@ -3854,13 +3854,25 @@
             return v !== null && v !== undefined && isFinite(v);
         }
 
+        // Returns two valid coordinates or null if either is invalid
+        function areValidCoords(lat, lng) {
+            return isValidCoord(lat) && isValidCoord(lng);
+        }
+
+        // Parse a numeric field value, returning fallback when the result is NaN
+        // (unlike ??, which only catches null/undefined, not NaN)
+        function parseNumericField(value, fallback) {
+            const n = parseFloat(value);
+            return isNaN(n) ? fallback : n;
+        }
+
         function drawVisualization(result) {
             if (!result) return;
 
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
-            const hasGeoCoords = isValidCoord(depotLat) && isValidCoord(depotLng)
-                && stops.some(s => isValidCoord(s.lat) && isValidCoord(s.lng));
+            const hasGeoCoords = areValidCoords(depotLat, depotLng)
+                && stops.some(s => areValidCoords(s.lat, s.lng));
 
             if (hasGeoCoords) {
                 document.getElementById('visualization').style.display = 'none';
@@ -3933,11 +3945,11 @@
         async function renderMapVisualization(result) {
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
-            if (!isValidCoord(depotLat) || !isValidCoord(depotLng)) return;
+            if (!areValidCoords(depotLat, depotLng)) return;
 
             const orderedStops = result.optimized_route_order
                 .map(id => stops.find(s => s.id === id))
-                .filter(s => s && isValidCoord(s.lat) && isValidCoord(s.lng));
+                .filter(s => s && areValidCoords(s.lat, s.lng));
 
             const geoPoints = orderedStops.length > 0
                 ? [{ lat: depotLat, lng: depotLng }, ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng }))]
