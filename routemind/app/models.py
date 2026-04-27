@@ -13,6 +13,8 @@ class Stop(BaseModel):
     id: int
     x: float
     y: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     window_start: float
     window_end: float
     service_time: float
@@ -36,6 +38,8 @@ class Stop(BaseModel):
 class Depot(BaseModel):
     x: float
     y: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class Weights(BaseModel):

@@ -1559,7 +1559,88 @@
                 grid-template-columns: 1fr;
             }
         }
+        /* ---- Map controls ---- */
+        .map-controls {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .map-control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .map-control-group label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #374151;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            transition: var(--theme-surface-transition);
+        }
+
+        .map-control-group select {
+            min-width: 145px;
+        }
+
+        /* Leaflet map container */
+        #routeMap {
+            height: 450px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 14px;
+            border: 1px solid #DDE5EC;
+            transition: border-color var(--theme-transition-duration) var(--theme-transition-curve);
+        }
+
+        /* Map error / warning banner */
+        .map-error-msg {
+            background: rgba(234, 88, 12, 0.08);
+            border: 1px solid rgba(234, 88, 12, 0.3);
+            color: #c2410c;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 8px;
+            transition: var(--theme-surface-transition);
+        }
+
+        /* Optional field hint */
+        .field-optional {
+            font-size: 10px;
+            color: #9CA3AF;
+            font-weight: 400;
+            margin-left: 3px;
+        }
+
+        /* Dark mode overrides for map elements */
+        body.dark-mode .map-control-group label {
+            color: #94A3B8;
+        }
+
+        body.dark-mode #routeMap {
+            border-color: rgba(71, 85, 105, 0.58);
+        }
+
+        body.dark-mode .map-error-msg {
+            background: rgba(234, 88, 12, 0.12);
+            border-color: rgba(234, 88, 12, 0.38);
+            color: #fb923c;
+        }
+
+        /* Dark-mode tile filter for OSM streets layer only */
+        body.dark-mode .rm-tile-streets .leaflet-tile {
+            filter: brightness(0.65) invert(1) hue-rotate(180deg) !important;
+        }
     </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEg=" crossorigin=""></script>
 </head>
 <body>
     <!-- Header -->
@@ -1674,6 +1755,16 @@
                             <input type="number" id="depotY" value="0" step="0.1">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Latitude<span class="field-optional">(map)</span></label>
+                            <input type="number" id="depotLat" value="" step="0.0001" placeholder="e.g. 51.5007">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitude<span class="field-optional">(map)</span></label>
+                            <input type="number" id="depotLng" value="" step="0.0001" placeholder="e.g. -0.1246">
+                        </div>
+                    </div>
 
                     <!-- Settings Section -->
                     <div class="section-label"><span class="section-label-icon">⚡</span>Settings</div>
@@ -1743,6 +1834,7 @@
                     <div class="stacked-actions">
                         <div class="result-toolbar">
                             <button class="btn btn-secondary" onclick="loadSampleScenario()">Load Sample Data</button>
+                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Map Demo</button>
                             <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
                         </div>
                     </div>
@@ -1841,7 +1933,30 @@
                     <!-- Visualization -->
                     <div class="card">
                         <div class="visualization-title">📍 Route Visualization</div>
+                        <!-- Map controls – shown only when geographic coords are available -->
+                        <div class="map-controls" id="mapControls" style="display:none;">
+                            <div class="map-control-group">
+                                <label>🗺️ Map Style</label>
+                                <select id="mapStyleSelect" onchange="onMapStyleChange()">
+                                    <option value="streets">Standard</option>
+                                    <option value="satellite">Satellite</option>
+                                    <option value="hybrid">Hybrid</option>
+                                </select>
+                            </div>
+                            <div class="map-control-group">
+                                <label>🚗 Travel Mode</label>
+                                <select id="travelModeSelect" onchange="onTravelModeChange()">
+                                    <option value="driving">Driving</option>
+                                    <option value="walking">Walking</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Leaflet map (shown when lat/lng coords are present) -->
+                        <div id="routeMap" style="display:none;"></div>
+                        <!-- Canvas fallback visualization -->
                         <div id="visualization"></div>
+                        <!-- Routing error / fallback notice -->
+                        <div class="map-error-msg" id="mapError" style="display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -1855,19 +1970,44 @@
         const THEME_SWITCHING_CLASS = 'theme-switching';
         const THEME_SWITCH_SOFTEN_MS = 180;
         const DEFAULT_STOPS = [
-            { id: 1, x: 5, y: 5, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 },
-            { id: 2, x: 10, y: 8, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 2 },
-            { id: 3, x: 15, y: 10, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 }
+            { id: 1, x: 5, y: 5, lat: null, lng: null, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 },
+            { id: 2, x: 10, y: 8, lat: null, lng: null, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 2 },
+            { id: 3, x: 15, y: 10, lat: null, lng: null, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 }
         ];
         const SAMPLE_ROUTE_PAYLOAD = {
-            depot: { x: 0, y: 0 },
+            depot: { x: 0, y: 0, lat: null, lng: null },
             stops: [
-                { id: 1, x: 2, y: 3, window_start: 2, window_end: 10, service_time: 1, priority: 3 },
-                { id: 2, x: 5, y: 2, window_start: 0, window_end: 8, service_time: 1, priority: 5 },
-                { id: 3, x: 6, y: 6, window_start: 5, window_end: 15, service_time: 1, priority: 2 },
-                { id: 4, x: 8, y: 3, window_start: 3, window_end: 12, service_time: 1, priority: 4 }
+                { id: 1, x: 2, y: 3, lat: null, lng: null, window_start: 2, window_end: 10, service_time: 1, priority: 3 },
+                { id: 2, x: 5, y: 2, lat: null, lng: null, window_start: 0, window_end: 8, service_time: 1, priority: 5 },
+                { id: 3, x: 6, y: 6, lat: null, lng: null, window_start: 5, window_end: 15, service_time: 1, priority: 2 },
+                { id: 4, x: 8, y: 3, lat: null, lng: null, window_start: 3, window_end: 12, service_time: 1, priority: 4 }
             ],
             max_shift_time: 25,
+            weights: {
+                w_dist: 1,
+                w_wait: 0.5,
+                w_late: 3,
+                w_priority: 2,
+                w_shift: 4
+            },
+            optimization: {
+                algorithm: '2opt',
+                max_iterations: 250,
+                no_improvement_limit: 40,
+                time_limit: null
+            }
+        };
+        // London landmarks sample for real-map demonstration.
+        // x = lng, y = lat so the optimizer's Euclidean distances approximate real distances.
+        const SAMPLE_MAP_PAYLOAD = {
+            depot: { x: -0.1246, y: 51.5007, lat: 51.5007, lng: -0.1246 },
+            stops: [
+                { id: 1, x: -0.1419, y: 51.5014, lat: 51.5014, lng: -0.1419, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 3 },
+                { id: 2, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 5 },
+                { id: 3, x: -0.0994, y: 51.5076, lat: 51.5076, lng: -0.0994, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 2 },
+                { id: 4, x: -0.1195, y: 51.5033, lat: 51.5033, lng: -0.1195, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 4 }
+            ],
+            max_shift_time: 1.0,
             weights: {
                 w_dist: 1,
                 w_wait: 0.5,
@@ -1886,6 +2026,36 @@
         let currentUser = null;
         let currentScenarioId = null;
         let themeSwitchTimeoutId = null;
+
+        // ---- Leaflet map state ----
+        let leafletMap = null;
+        let currentTileLayer = null;
+        let currentLabelsLayer = null;
+        let currentRouteLayer = null;
+        let currentMarkerGroup = null;
+
+        const TILE_CONFIGS = {
+            streets: {
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                className: 'rm-tile-streets',
+                maxZoom: 19
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
+                className: 'rm-tile-satellite',
+                maxZoom: 19
+            },
+            hybrid: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                className: 'rm-tile-satellite',
+                maxZoom: 19,
+                labelsUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+                labelsAttribution: ''
+            }
+        };
 
         function getStoredToken() {
             return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
@@ -1976,7 +2146,10 @@
                 updateThemeToggle(isDark ? 'dark' : 'light');
 
                 if (window.latestOptimizationResult && document.getElementById('resultsPanel').style.display !== 'none') {
-                    drawVisualization(window.latestOptimizationResult);
+                    // Only redraw canvas; the Leaflet map handles dark mode via CSS filters
+                    if (!leafletMap) {
+                        drawVisualization(window.latestOptimizationResult);
+                    }
                 }
             };
 
@@ -2071,16 +2244,22 @@
 
         function buildRoutePayload() {
             const timeLimitValue = document.getElementById('timeLimit').value;
+            const depotLat = document.getElementById('depotLat').value;
+            const depotLng = document.getElementById('depotLng').value;
 
             return {
                 depot: {
                     x: parseFloat(document.getElementById('depotX').value),
-                    y: parseFloat(document.getElementById('depotY').value)
+                    y: parseFloat(document.getElementById('depotY').value),
+                    lat: depotLat !== '' ? parseFloat(depotLat) : null,
+                    lng: depotLng !== '' ? parseFloat(depotLng) : null
                 },
                 stops: stops.map(s => ({
                     id: s.id,
                     x: s.x,
                     y: s.y,
+                    lat: s.lat ?? null,
+                    lng: s.lng ?? null,
                     window_start: s.windowStart,
                     window_end: s.windowEnd,
                     service_time: s.serviceTime,
@@ -2106,6 +2285,8 @@
         function applyRoutePayload(payload) {
             document.getElementById('depotX').value = payload.depot.x;
             document.getElementById('depotY').value = payload.depot.y;
+            document.getElementById('depotLat').value = payload.depot.lat ?? '';
+            document.getElementById('depotLng').value = payload.depot.lng ?? '';
             document.getElementById('maxShiftTime').value = payload.max_shift_time;
             document.getElementById('algorithm').value = payload.optimization?.algorithm || '2opt';
             document.getElementById('maxIterations').value = payload.optimization?.max_iterations ?? 500;
@@ -2121,6 +2302,8 @@
                 id: stop.id,
                 x: stop.x,
                 y: stop.y,
+                lat: stop.lat ?? null,
+                lng: stop.lng ?? null,
                 windowStart: stop.window_start,
                 windowEnd: stop.window_end,
                 serviceTime: stop.service_time,
@@ -2281,6 +2464,16 @@
                                 onchange="stops[${idx}].y = parseFloat(this.value)">
                         </div>
                         <div class="stop-grid-col">
+                            <label>Lat <span class="field-optional">map</span></label>
+                            <input type="number" value="${stop.lat ?? ''}" placeholder="e.g. 51.50" step="0.0001"
+                                onchange="stops[${idx}].lat = this.value !== '' ? parseFloat(this.value) : null">
+                        </div>
+                        <div class="stop-grid-col">
+                            <label>Lng <span class="field-optional">map</span></label>
+                            <input type="number" value="${stop.lng ?? ''}" placeholder="e.g. -0.12" step="0.0001"
+                                onchange="stops[${idx}].lng = this.value !== '' ? parseFloat(this.value) : null">
+                        </div>
+                        <div class="stop-grid-col">
                             <label>W. Start</label>
                             <input type="number" value="${stop.windowStart}" placeholder="W.Start" 
                                 onchange="stops[${idx}].windowStart = parseFloat(this.value)">
@@ -2311,6 +2504,8 @@
                 id: newId,
                 x: Math.random() * 20,
                 y: Math.random() * 20,
+                lat: null,
+                lng: null,
                 windowStart: 0,
                 windowEnd: 100,
                 serviceTime: 5,
@@ -2327,6 +2522,8 @@
         function clearForm() {
             document.getElementById('depotX').value = 0;
             document.getElementById('depotY').value = 0;
+            document.getElementById('depotLat').value = '';
+            document.getElementById('depotLng').value = '';
             document.getElementById('maxShiftTime').value = 480;
             document.getElementById('algorithm').value = '2opt';
             document.getElementById('maxIterations').value = 500;
@@ -2344,6 +2541,7 @@
             document.getElementById('success').style.display = 'none';
             currentScenarioId = null;
             window.latestOptimizationResult = null;
+            destroyLeafletMap();
             stops = structuredClone(DEFAULT_STOPS);
             renderStops();
         }
@@ -2359,6 +2557,13 @@
             currentScenarioId = null;
             document.getElementById('scenarioName').value = 'Sample route';
             showMessage('success', 'Sample data loaded into the form.');
+        }
+
+        function loadMapDemo() {
+            applyRoutePayload(SAMPLE_MAP_PAYLOAD);
+            currentScenarioId = null;
+            document.getElementById('scenarioName').value = 'London map demo';
+            showMessage('success', 'London map demo loaded. Click Optimize Route then view the real map!');
         }
 
         async function saveScenario() {
@@ -2675,7 +2880,187 @@
             drawVisualization(result);
         }
 
+        // ---- Visualization dispatcher ----
         function drawVisualization(result) {
+            if (!result) return;
+
+            const depotLatVal = document.getElementById('depotLat').value;
+            const depotLngVal = document.getElementById('depotLng').value;
+            const depotLat = depotLatVal !== '' ? parseFloat(depotLatVal) : null;
+            const depotLng = depotLngVal !== '' ? parseFloat(depotLngVal) : null;
+            const hasGeoCoords = depotLat !== null && depotLng !== null
+                && stops.some(s => s.lat !== null && s.lng !== null);
+
+            if (hasGeoCoords) {
+                // Show Leaflet map, hide canvas
+                document.getElementById('visualization').style.display = 'none';
+                document.getElementById('mapControls').style.display = 'flex';
+                renderMapVisualization(result);
+            } else {
+                // Show canvas fallback, hide map
+                destroyLeafletMap();
+                document.getElementById('visualization').style.display = 'block';
+                drawCanvasVisualization(result);
+            }
+        }
+
+        // ---- Leaflet map functions ----
+        function destroyLeafletMap() {
+            if (leafletMap) {
+                leafletMap.remove();
+                leafletMap = null;
+                currentTileLayer = null;
+                currentLabelsLayer = null;
+                currentRouteLayer = null;
+                currentMarkerGroup = null;
+            }
+            document.getElementById('routeMap').style.display = 'none';
+            document.getElementById('mapControls').style.display = 'none';
+            document.getElementById('mapError').style.display = 'none';
+        }
+
+        function initLeafletMap(centerLat, centerLng, zoom) {
+            const mapEl = document.getElementById('routeMap');
+
+            if (leafletMap) {
+                leafletMap.remove();
+                leafletMap = null;
+                currentTileLayer = null;
+                currentLabelsLayer = null;
+                currentRouteLayer = null;
+                currentMarkerGroup = null;
+            }
+
+            mapEl.style.display = 'block';
+            leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
+            updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
+        }
+
+        function updateTileLayer(style) {
+            if (!leafletMap) return;
+            if (currentTileLayer) { leafletMap.removeLayer(currentTileLayer); currentTileLayer = null; }
+            if (currentLabelsLayer) { leafletMap.removeLayer(currentLabelsLayer); currentLabelsLayer = null; }
+
+            const cfg = TILE_CONFIGS[style] || TILE_CONFIGS.streets;
+            currentTileLayer = L.tileLayer(cfg.url, {
+                attribution: cfg.attribution,
+                className: cfg.className || '',
+                maxZoom: cfg.maxZoom || 19
+            }).addTo(leafletMap);
+
+            if (cfg.labelsUrl) {
+                currentLabelsLayer = L.tileLayer(cfg.labelsUrl, {
+                    attribution: cfg.labelsAttribution || '',
+                    maxZoom: cfg.maxZoom || 19,
+                    opacity: 1
+                }).addTo(leafletMap);
+            }
+        }
+
+        async function fetchOSRMRoute(waypoints, mode) {
+            const service = mode === 'walking'
+                ? 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
+                : 'https://routing.openstreetmap.de/routed-car/route/v1/driving';
+            const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
+            const resp = await fetch(`${service}/${coords}?overview=full&geometries=geojson`);
+            if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
+            const data = await resp.json();
+            if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
+            // OSRM returns [lng, lat] pairs – convert to Leaflet [lat, lng]
+            return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+        }
+
+        async function renderMapVisualization(result) {
+            const depotLat = parseFloat(document.getElementById('depotLat').value);
+            const depotLng = parseFloat(document.getElementById('depotLng').value);
+            if (!depotLat || !depotLng) return;
+
+            const orderedStops = result.optimized_route_order
+                .map(id => stops.find(s => s.id === id))
+                .filter(s => s && s.lat !== null && s.lng !== null);
+
+            if (orderedStops.length === 0) return;
+
+            // Build waypoints: depot → stops in order → depot (round-trip)
+            const waypointsForRouting = [
+                { lat: depotLat, lng: depotLng },
+                ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng })),
+                { lat: depotLat, lng: depotLng }
+            ];
+
+            // Determine map center
+            const allLats = waypointsForRouting.map(p => p.lat);
+            const allLngs = waypointsForRouting.map(p => p.lng);
+            const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
+            const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
+
+            initLeafletMap(centerLat, centerLng, 13);
+
+            // Clear previous route and markers
+            if (currentRouteLayer) { leafletMap.removeLayer(currentRouteLayer); currentRouteLayer = null; }
+            if (currentMarkerGroup) { leafletMap.removeLayer(currentMarkerGroup); currentMarkerGroup = null; }
+
+            const mode = document.getElementById('travelModeSelect').value || 'driving';
+            const mapError = document.getElementById('mapError');
+            let routeLatLngs;
+
+            try {
+                routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode);
+                mapError.style.display = 'none';
+            } catch (err) {
+                // Graceful fallback: draw straight lines between waypoints
+                routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
+                mapError.textContent = `⚠️ Live routing unavailable (${err.message}). Showing straight-line route.`;
+                mapError.style.display = 'block';
+            }
+
+            // Draw route polyline
+            currentRouteLayer = L.polyline(routeLatLngs, {
+                color: '#14B8E6',
+                weight: 4,
+                opacity: 0.85,
+                lineJoin: 'round'
+            }).addTo(leafletMap);
+
+            // Add markers
+            currentMarkerGroup = L.layerGroup().addTo(leafletMap);
+
+            const makeIcon = (label, bg) => L.divIcon({
+                html: `<div style="background:${bg};color:#fff;font-weight:700;font-size:12px;`
+                    + `width:26px;height:26px;border-radius:50%;display:flex;align-items:center;`
+                    + `justify-content:center;border:2.5px solid #fff;`
+                    + `box-shadow:0 2px 6px rgba(0,0,0,0.35);">${label}</div>`,
+                className: '',
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+
+            L.marker([depotLat, depotLng], { icon: makeIcon('D', '#FF8A34') })
+                .bindTooltip('Depot', { permanent: false })
+                .addTo(currentMarkerGroup);
+
+            orderedStops.forEach((stop, idx) => {
+                L.marker([stop.lat, stop.lng], { icon: makeIcon(idx + 1, '#14C8B0') })
+                    .bindTooltip(`Stop ${stop.id} · Order ${idx + 1}`, { permanent: false })
+                    .addTo(currentMarkerGroup);
+            });
+
+            // Fit viewport to route bounds
+            leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+        }
+
+        function onMapStyleChange() {
+            updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
+        }
+
+        async function onTravelModeChange() {
+            if (leafletMap && window.latestOptimizationResult) {
+                await renderMapVisualization(window.latestOptimizationResult);
+            }
+        }
+
+        // ---- Canvas fallback visualization ----
+        function drawCanvasVisualization(result) {
             if (!result) {
                 return;
             }
