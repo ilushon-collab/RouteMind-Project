@@ -2751,11 +2751,13 @@
                 } catch (_) {
                     // Stored value is not valid JSON; clear and show picker
                 }
-                // Validate required fields so partial/corrupt objects don't propagate
+                // Validate required fields so partial/corrupt objects don't propagate.
+                // Also verify the code matches a known entry to reject arbitrary localStorage values.
                 const isValid = parsed
                     && typeof parsed.code === 'string' && parsed.code.length === 2
                     && typeof parsed.flag === 'string' && parsed.flag.length > 0
-                    && typeof parsed.name === 'string' && parsed.name.length > 0;
+                    && typeof parsed.name === 'string' && parsed.name.length > 0
+                    && COUNTRIES.some(c => c.code === parsed.code);
                 if (isValid) {
                     selectedCountry = parsed;
                     updateCountryBadge();
@@ -2787,7 +2789,7 @@
                 `https://nominatim.openstreetmap.org/search?${params}`,
                 fetchOptions
             );
-            if (!resp.ok) throw new Error('Nominatim search failed');
+            if (!resp.ok) throw new Error(`Nominatim search failed with status ${resp.status}`);
             return resp.json();
         }
 
@@ -3758,7 +3760,9 @@
             } catch (err) {
                 // Export still proceeds; request section will be null (e.g. if some addresses
                 // were not geocoded but the result was loaded from history)
-                console.warn('Could not rebuild route payload for export:', err instanceof Error ? err.message : String(err));
+                const msg = err instanceof Error ? err.message : String(err);
+                console.warn('Could not rebuild route payload for export:', msg);
+                showMessage('error', `Export note: route inputs could not be rebuilt (${msg}). The optimization result is still included.`);
             }
             const payload = {
                 exported_at: new Date().toISOString(),
