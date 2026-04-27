@@ -2538,6 +2538,23 @@
                 .replace(/'/g, '&#39;');
         }
 
+        // Safe numeric guard: explicitly rejects null/undefined (isFinite(null)===true in JS)
+        function isValidCoord(v) {
+            return v !== null && v !== undefined && isFinite(v);
+        }
+
+        // Returns true only if both coordinate values are present and finite
+        function areValidCoords(lat, lng) {
+            return isValidCoord(lat) && isValidCoord(lng);
+        }
+
+        // Parse a numeric field value, returning fallback when the result is NaN
+        // (unlike ??, which only catches null/undefined, not NaN)
+        function parseNumericField(value, fallback) {
+            const n = parseFloat(value);
+            return isNaN(n) ? fallback : n;
+        }
+
         function getStoredToken() {
             return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
         }
@@ -2667,14 +2684,27 @@
                 ? COUNTRIES.filter(c => c.name.toLowerCase().includes(lf) || c.code.includes(lf))
                 : COUNTRIES;
 
+            // Use data-* attributes instead of inline JS string literals to avoid
+            // single-quote injection in onclick contexts
             grid.innerHTML = visible.map(c => `
                 <button class="country-btn${selectedCountry.code === c.code ? ' selected' : ''}"
                         type="button"
-                        onclick="selectCountry('${c.code}','${escapeHtml(c.flag)}','${escapeHtml(c.name)}')">
-                    <span>${c.flag}</span><span>${c.name}</span>
+                        data-code="${escapeHtml(c.code)}"
+                        data-flag="${escapeHtml(c.flag)}"
+                        data-name="${escapeHtml(c.name)}">
+                    <span>${c.flag}</span><span>${escapeHtml(c.name)}</span>
                 </button>
             `).join('');
         }
+
+        // Delegated click handler on the country grid
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('countryGrid').addEventListener('click', e => {
+                const btn = e.target.closest('.country-btn');
+                if (!btn) return;
+                selectCountry(btn.dataset.code, btn.dataset.flag, btn.dataset.name);
+            });
+        });
 
         function selectCountry(code, flag, name) {
             selectedCountry = { code, flag, name };
@@ -2723,7 +2753,7 @@
                 }
                 // Validate required fields so partial/corrupt objects don't propagate
                 const isValid = parsed
-                    && typeof parsed.code === 'string' && parsed.code.length >= 2
+                    && typeof parsed.code === 'string' && parsed.code.length === 2
                     && typeof parsed.flag === 'string' && parsed.flag.length > 0
                     && typeof parsed.name === 'string' && parsed.name.length > 0;
                 if (isValid) {
@@ -3656,13 +3686,14 @@
             // Cancel any pending Nominatim requests / debounce timers
             if (depotNominatimController) { depotNominatimController.abort(); depotNominatimController = null; }
             clearTimeout(depotDebounceTimer);
-            for (const idx of Object.keys(stopNominatimControllers)) {
-                stopNominatimControllers[idx].abort();
-                delete stopNominatimControllers[idx];
+            // Object.keys returns strings; JS object lookup works with both string/number keys
+            for (const key of Object.keys(stopNominatimControllers)) {
+                stopNominatimControllers[key].abort();
+                delete stopNominatimControllers[key];
             }
-            for (const idx of Object.keys(stopDebounceTimers)) {
-                clearTimeout(stopDebounceTimers[idx]);
-                delete stopDebounceTimers[idx];
+            for (const key of Object.keys(stopDebounceTimers)) {
+                clearTimeout(stopDebounceTimers[key]);
+                delete stopDebounceTimers[key];
             }
             // Close any open autocomplete dropdowns
             document.querySelectorAll('.autocomplete-dropdown.open').forEach(d => d.classList.remove('open'));
@@ -3727,7 +3758,7 @@
             } catch (err) {
                 // Export still proceeds; request section will be null (e.g. if some addresses
                 // were not geocoded but the result was loaded from history)
-                console.warn('Could not rebuild route payload for export:', err.message);
+                console.warn('Could not rebuild route payload for export:', err instanceof Error ? err.message : String(err));
             }
             const payload = {
                 exported_at: new Date().toISOString(),
@@ -3850,23 +3881,6 @@
         /* ============================================================
          *  VISUALIZATION DISPATCHER
          * ============================================================ */
-        // Safe numeric guard: explicitly rejects null/undefined (isFinite(null)===true in JS)
-        function isValidCoord(v) {
-            return v !== null && v !== undefined && isFinite(v);
-        }
-
-        // Returns two valid coordinates or null if either is invalid
-        function areValidCoords(lat, lng) {
-            return isValidCoord(lat) && isValidCoord(lng);
-        }
-
-        // Parse a numeric field value, returning fallback when the result is NaN
-        // (unlike ??, which only catches null/undefined, not NaN)
-        function parseNumericField(value, fallback) {
-            const n = parseFloat(value);
-            return isNaN(n) ? fallback : n;
-        }
-
         function drawVisualization(result) {
             if (!result) return;
 
@@ -3939,7 +3953,7 @@
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
-            if (!data.routes || data.routes.length === 0) throw new Error('Routing service returned no routes');
+            if (!data.routes || data.routes.length === 0) throw new Error('OSRM routing returned no valid routes — the waypoints may be too far apart or the selected travel mode may not support this route');
             return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
         }
 
