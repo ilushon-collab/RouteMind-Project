@@ -1636,6 +1636,388 @@
         body.dark-mode .rm-tile-streets .leaflet-tile {
             filter: brightness(0.65) invert(1) hue-rotate(180deg) !important;
         }
+
+        /* ---- Country Picker Overlay ---- */
+        .country-picker-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(135deg, #EAF6FB 0%, #EEF8F4 50%, #FFF8F0 100%);
+            transition: opacity 300ms ease;
+        }
+
+        .country-picker-overlay.hidden {
+            display: none !important;
+        }
+
+        .country-picker-box {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #DDE5EC;
+            box-shadow: 0 24px 64px rgba(15, 23, 42, 0.14);
+            width: min(100%, 560px);
+            overflow: hidden;
+        }
+
+        .country-picker-header {
+            padding: 28px 28px 20px;
+            border-bottom: 1px solid #e8eaed;
+            text-align: center;
+        }
+
+        .country-picker-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            line-height: 1;
+        }
+
+        .country-picker-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            letter-spacing: -0.4px;
+        }
+
+        .country-picker-header p {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .country-picker-body {
+            padding: 20px 28px 28px;
+        }
+
+        .country-search-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #dfe2e8;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            font-family: inherit;
+            background: white;
+            color: #111827;
+            transition: var(--theme-surface-transition);
+        }
+
+        .country-search-input:focus {
+            outline: none;
+            border-color: #14B8E6;
+            box-shadow: 0 0 0 3px rgba(20, 184, 230, 0.1);
+        }
+
+        .country-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .country-btn {
+            padding: 10px 12px;
+            border: 1px solid #dfe2e8;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 150ms, border-color 150ms, color 150ms;
+            font-family: inherit;
+        }
+
+        .country-btn:hover {
+            background: #f0f9ff;
+            border-color: #14B8E6;
+            color: #0891b2;
+        }
+
+        .country-btn.selected {
+            background: #ecf8ff;
+            border-color: #14B8E6;
+            color: #0891b2;
+            box-shadow: 0 0 0 2px rgba(20, 184, 230, 0.12);
+        }
+
+        .country-picker-footer {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* ---- Address autocomplete ---- */
+        .autocomplete-wrapper {
+            position: relative;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #dde5ec;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            z-index: 200;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
+            display: none;
+        }
+
+        .autocomplete-dropdown.open {
+            display: block;
+        }
+
+        .autocomplete-item {
+            padding: 9px 12px;
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            line-height: 1.4;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.focused {
+            background: #f0f9ff;
+            color: #0891b2;
+        }
+
+        .autocomplete-hint {
+            padding: 9px 12px;
+            font-size: 12px;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        /* ---- Address status chips ---- */
+        .address-status {
+            font-size: 11px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            line-height: 1.4;
+            word-break: break-word;
+            transition: var(--theme-surface-transition);
+        }
+
+        .address-status.resolved {
+            background: #f0fdf4;
+            border: 1px solid #d1fae5;
+            color: #166534;
+        }
+
+        .address-status.unresolved {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+
+        .geocode-btn {
+            padding: 7px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #ecf8ff;
+            color: #0891b2;
+            border: 1px solid #bae6fd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 150ms;
+            font-family: inherit;
+            flex-shrink: 0;
+        }
+
+        .geocode-btn:hover {
+            background: #dbeafe;
+        }
+
+        .address-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+
+        .address-row .address-status {
+            flex: 1;
+        }
+
+        /* ---- Country badge in header ---- */
+        .country-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(190, 205, 220, 0.75);
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: var(--theme-surface-transition);
+        }
+
+        .country-badge:hover {
+            border-color: rgba(20, 184, 230, 0.45);
+        }
+
+        /* ---- Stop card address layout ---- */
+        .stop-addr-grid {
+            display: grid;
+            grid-template-columns: 1fr 80px;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .stop-timing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 60px;
+            gap: 6px;
+        }
+
+        .stop-timing-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stop-timing-col label {
+            font-size: 9px;
+            margin-bottom: 0;
+            font-weight: 700;
+            color: #9ca3af;
+            transition: var(--theme-surface-transition);
+        }
+
+        .stop-timing-col input {
+            padding: 7px 9px;
+            font-size: 12px;
+            border: 1px solid #dfe2e8;
+        }
+
+        .stop-timing-col input:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.08);
+        }
+
+        /* ---- Dark mode additions ---- */
+        body.dark-mode .country-picker-overlay {
+            background: linear-gradient(135deg, #0f172a 0%, #111827 48%, #1f2937 100%);
+        }
+
+        body.dark-mode .country-picker-box {
+            background: rgba(15, 23, 42, 0.98);
+            border-color: rgba(71, 85, 105, 0.58);
+        }
+
+        body.dark-mode .country-picker-header {
+            border-bottom-color: rgba(71, 85, 105, 0.45);
+        }
+
+        body.dark-mode .country-picker-header h2 {
+            color: #F8FAFC;
+        }
+
+        body.dark-mode .country-picker-header p {
+            color: #94A3B8;
+        }
+
+        body.dark-mode .country-search-input {
+            background: #101a2e;
+            border-color: rgba(71, 85, 105, 0.52);
+            color: #E2E8F0;
+        }
+
+        body.dark-mode .country-search-input:focus {
+            background: #12213a;
+            border-color: rgba(56, 189, 248, 0.75);
+        }
+
+        body.dark-mode .country-btn {
+            background: #101b31;
+            border-color: rgba(71, 85, 105, 0.52);
+            color: #CBD5E1;
+        }
+
+        body.dark-mode .country-btn:hover,
+        body.dark-mode .country-btn.selected {
+            background: #0f1b31;
+            border-color: rgba(34, 211, 238, 0.5);
+            color: #67e8f9;
+        }
+
+        body.dark-mode .autocomplete-dropdown {
+            background: #0f1b31;
+            border-color: rgba(71, 85, 105, 0.52);
+        }
+
+        body.dark-mode .autocomplete-item {
+            color: #E2E8F0;
+            border-bottom-color: rgba(71, 85, 105, 0.3);
+        }
+
+        body.dark-mode .autocomplete-item:hover,
+        body.dark-mode .autocomplete-item.focused {
+            background: rgba(34, 211, 238, 0.08);
+            color: #67e8f9;
+        }
+
+        body.dark-mode .autocomplete-hint {
+            color: #64748b;
+        }
+
+        body.dark-mode .address-status.resolved {
+            background: rgba(20, 83, 45, 0.25);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: #86efac;
+        }
+
+        body.dark-mode .address-status.unresolved {
+            background: rgba(120, 53, 15, 0.25);
+            border-color: rgba(251, 191, 36, 0.3);
+            color: #fde68a;
+        }
+
+        body.dark-mode .geocode-btn {
+            background: rgba(14, 165, 216, 0.12);
+            border-color: rgba(14, 165, 216, 0.3);
+            color: #67e8f9;
+        }
+
+        body.dark-mode .country-badge {
+            background: rgba(30, 41, 59, 0.88);
+            color: #E2E8F0;
+            border-color: rgba(71, 85, 105, 0.9);
+        }
+
+        body.dark-mode .stop-timing-col input {
+            background: #101a2e;
+            border-color: rgba(71, 85, 105, 0.5);
+            color: #E2E8F0;
+        }
+
+        body.dark-mode .stop-timing-col input:focus {
+            border-color: rgba(34, 211, 238, 0.78);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+        }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
@@ -1643,6 +2025,26 @@
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEg=" crossorigin="anonymous"></script>
 </head>
 <body>
+    <!-- Country Picker Overlay (shown on first visit) -->
+    <div class="country-picker-overlay hidden" id="countryPickerOverlay">
+        <div class="country-picker-box">
+            <div class="country-picker-header">
+                <div class="country-picker-icon">🌍</div>
+                <h2>Where are you delivering?</h2>
+                <p>Choose your country to enable address search and accurate routing</p>
+            </div>
+            <div class="country-picker-body">
+                <input type="text" class="country-search-input" id="countrySearch"
+                       placeholder="🔍 Search countries…" oninput="filterCountries(this.value)">
+                <div class="country-grid" id="countryGrid"></div>
+                <div class="country-picker-footer">
+                    <button class="btn btn-secondary" type="button" onclick="skipCountryPicker()">Skip</button>
+                    <button class="btn btn-primary" type="button" onclick="confirmCountry()"
+                            id="countryConfirmBtn" disabled>Get Started →</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Header -->
     <div class="header">
         <div class="container">
@@ -1671,6 +2073,10 @@
                     <button class="theme-toggle" id="themeToggle" type="button" onclick="toggleTheme()" aria-label="Switch to dark mode">
                         <span class="theme-toggle-icon" id="themeToggleIcon">🌙</span>
                         <span id="themeToggleText">Dark mode</span>
+                    </button>
+                    <button class="country-badge" id="countryBadge" type="button"
+                            onclick="openCountryPicker()" title="Change country">
+                        <span id="countryBadgeText">🌍 Select country</span>
                     </button>
                     <div class="version-badge">v3.0</div>
                 </div>
@@ -1747,24 +2153,35 @@
                     <div class="section-label"><span class="section-label-icon">📍</span>Depot Location</div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>X Coordinate</label>
-                            <input type="number" id="depotX" value="0" step="0.1">
+                            <label>City</label>
+                            <input type="text" id="depotCity" placeholder="e.g. London"
+                                   oninput="onDepotCityInput()">
                         </div>
                         <div class="form-group">
-                            <label>Y Coordinate</label>
-                            <input type="number" id="depotY" value="0" step="0.1">
+                            <label>House / Building No.</label>
+                            <input type="text" id="depotHouse" placeholder="e.g. 10"
+                                   oninput="onDepotFieldChange()">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Latitude<span class="field-optional">(map)</span></label>
-                            <input type="number" id="depotLat" value="" step="0.0001" placeholder="e.g. 51.5007">
-                        </div>
-                        <div class="form-group">
-                            <label>Longitude<span class="field-optional">(map)</span></label>
-                            <input type="number" id="depotLng" value="" step="0.0001" placeholder="e.g. -0.1246">
+                    <div class="form-group">
+                        <label>Street</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="depotStreet" placeholder="Start typing street name…"
+                                   autocomplete="off"
+                                   oninput="onDepotStreetInput(this.value)"
+                                   onblur="hideDropdown('depotStreetDropdown', 200)">
+                            <div class="autocomplete-dropdown" id="depotStreetDropdown"></div>
                         </div>
                     </div>
+                    <div class="address-row">
+                        <button class="geocode-btn" type="button" onclick="geocodeDepot()">📍 Geocode</button>
+                        <div class="address-status unresolved" id="depotAddressStatus">Not geocoded yet</div>
+                    </div>
+                    <!-- Hidden inputs used internally and by drawVisualization -->
+                    <input type="hidden" id="depotLat">
+                    <input type="hidden" id="depotLng">
+                    <input type="hidden" id="depotX">
+                    <input type="hidden" id="depotY">
 
                     <!-- Settings Section -->
                     <div class="section-label"><span class="section-label-icon">⚡</span>Settings</div>
@@ -1772,13 +2189,22 @@
                         <label>Max Shift Time (minutes)</label>
                         <input type="number" id="maxShiftTime" value="480" min="60">
                     </div>
-                    <div class="form-group">
-                        <label>Algorithm</label>
-                        <select id="algorithm">
-                            <option value="2opt">2-opt (Recommended)</option>
-                            <option value="swap">Swap (Fast)</option>
-                            <option value="relocate">Relocate (Balanced)</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Algorithm</label>
+                            <select id="algorithm">
+                                <option value="2opt">2-opt (Recommended)</option>
+                                <option value="swap">Swap (Fast)</option>
+                                <option value="relocate">Relocate (Balanced)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>🚗 Travel Mode</label>
+                            <select id="travelModeSelect" onchange="onTravelModeChange()">
+                                <option value="driving">Driving</option>
+                                <option value="walking">Walking</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Max Iterations</label>
@@ -1833,8 +2259,7 @@
                     </div>
                     <div class="stacked-actions">
                         <div class="result-toolbar">
-                            <button class="btn btn-secondary" onclick="loadSampleScenario()">Load Sample Data</button>
-                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Map Demo</button>
+                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load London Demo</button>
                             <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
                         </div>
                     </div>
@@ -1943,13 +2368,6 @@
                                     <option value="hybrid">Hybrid</option>
                                 </select>
                             </div>
-                            <div class="map-control-group">
-                                <label>🚗 Travel Mode</label>
-                                <select id="travelModeSelect" onchange="onTravelModeChange()">
-                                    <option value="driving">Driving</option>
-                                    <option value="walking">Walking</option>
-                                </select>
-                            </div>
                         </div>
                         <!-- Leaflet map (shown when lat/lng coords are present) -->
                         <div id="routeMap" style="display:none;"></div>
@@ -1964,78 +2382,120 @@
     </div>
 
     <script>
-        const THEME_STORAGE_KEY = 'routemind-theme';
-        const AUTH_TOKEN_STORAGE_KEY = 'routemind-auth-token';
-        const THEME_READY_CLASS = 'theme-ready';
-        const THEME_SWITCHING_CLASS = 'theme-switching';
-        const THEME_SWITCH_SOFTEN_MS = 180;
-        const DEFAULT_STOPS = [
-            { id: 1, x: 5, y: 5, lat: null, lng: null, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 },
-            { id: 2, x: 10, y: 8, lat: null, lng: null, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 2 },
-            { id: 3, x: 15, y: 10, lat: null, lng: null, windowStart: 0, windowEnd: 100, serviceTime: 5, priority: 1 }
+        /* ============================================================
+         *  CONSTANTS & CONFIGURATION
+         * ============================================================ */
+        const THEME_STORAGE_KEY        = 'routemind-theme';
+        const AUTH_TOKEN_STORAGE_KEY   = 'routemind-auth-token';
+        const COUNTRY_STORAGE_KEY      = 'routemind-country';
+        const THEME_READY_CLASS        = 'theme-ready';
+        const THEME_SWITCHING_CLASS    = 'theme-switching';
+        const THEME_SWITCH_SOFTEN_MS   = 180;
+
+        const COUNTRIES = [
+            { code: 'us', flag: '🇺🇸', name: 'United States' },
+            { code: 'gb', flag: '🇬🇧', name: 'United Kingdom' },
+            { code: 'de', flag: '🇩🇪', name: 'Germany' },
+            { code: 'fr', flag: '🇫🇷', name: 'France' },
+            { code: 'il', flag: '🇮🇱', name: 'Israel' },
+            { code: 'nl', flag: '🇳🇱', name: 'Netherlands' },
+            { code: 'pl', flag: '🇵🇱', name: 'Poland' },
+            { code: 'es', flag: '🇪🇸', name: 'Spain' },
+            { code: 'it', flag: '🇮🇹', name: 'Italy' },
+            { code: 'au', flag: '🇦🇺', name: 'Australia' },
+            { code: 'ca', flag: '🇨🇦', name: 'Canada' },
+            { code: 'br', flag: '🇧🇷', name: 'Brazil' },
+            { code: 'ru', flag: '🇷🇺', name: 'Russia' },
+            { code: 'cn', flag: '🇨🇳', name: 'China' },
+            { code: 'jp', flag: '🇯🇵', name: 'Japan' },
+            { code: 'in', flag: '🇮🇳', name: 'India' },
+            { code: 'mx', flag: '🇲🇽', name: 'Mexico' },
+            { code: 'ar', flag: '🇦🇷', name: 'Argentina' },
+            { code: 'za', flag: '🇿🇦', name: 'South Africa' },
+            { code: 'eg', flag: '🇪🇬', name: 'Egypt' },
+            { code: 'tr', flag: '🇹🇷', name: 'Turkey' },
+            { code: 'ua', flag: '🇺🇦', name: 'Ukraine' },
+            { code: 'se', flag: '🇸🇪', name: 'Sweden' },
+            { code: 'no', flag: '🇳🇴', name: 'Norway' },
+            { code: 'dk', flag: '🇩🇰', name: 'Denmark' },
+            { code: 'fi', flag: '🇫🇮', name: 'Finland' },
+            { code: 'ch', flag: '🇨🇭', name: 'Switzerland' },
+            { code: 'at', flag: '🇦🇹', name: 'Austria' },
+            { code: 'be', flag: '🇧🇪', name: 'Belgium' },
+            { code: 'pt', flag: '🇵🇹', name: 'Portugal' },
+            { code: 'gr', flag: '🇬🇷', name: 'Greece' },
+            { code: 'cz', flag: '🇨🇿', name: 'Czech Republic' },
+            { code: 'ro', flag: '🇷🇴', name: 'Romania' },
+            { code: 'hu', flag: '🇭🇺', name: 'Hungary' },
+            { code: 'sk', flag: '🇸🇰', name: 'Slovakia' },
+            { code: 'nz', flag: '🇳🇿', name: 'New Zealand' },
+            { code: 'sg', flag: '🇸🇬', name: 'Singapore' },
+            { code: 'kr', flag: '🇰🇷', name: 'South Korea' },
+            { code: 'ae', flag: '🇦🇪', name: 'UAE' },
         ];
-        const SAMPLE_ROUTE_PAYLOAD = {
-            depot: { x: 0, y: 0, lat: null, lng: null },
-            stops: [
-                { id: 1, x: 2, y: 3, lat: null, lng: null, window_start: 2, window_end: 10, service_time: 1, priority: 3 },
-                { id: 2, x: 5, y: 2, lat: null, lng: null, window_start: 0, window_end: 8, service_time: 1, priority: 5 },
-                { id: 3, x: 6, y: 6, lat: null, lng: null, window_start: 5, window_end: 15, service_time: 1, priority: 2 },
-                { id: 4, x: 8, y: 3, lat: null, lng: null, window_start: 3, window_end: 12, service_time: 1, priority: 4 }
-            ],
-            max_shift_time: 25,
-            weights: {
-                w_dist: 1,
-                w_wait: 0.5,
-                w_late: 3,
-                w_priority: 2,
-                w_shift: 4
-            },
-            optimization: {
-                algorithm: '2opt',
-                max_iterations: 250,
-                no_improvement_limit: 40,
-                time_limit: null
-            }
-        };
-        // London landmarks sample for real-map demonstration.
-        // x and y mirror lng and lat respectively so that the optimizer's Euclidean
-        // distance calculation uses geographic coordinates as a reasonable proxy for
-        // real-world distances within a small area. lat/lng are the separate fields
-        // used by the Leaflet map renderer.
+
+        // London landmarks demo (always has geocoords so Leaflet map always shows)
         const SAMPLE_MAP_PAYLOAD = {
-            depot: { x: -0.1246, y: 51.5007, lat: 51.5007, lng: -0.1246 },
-            stops: [
-                { id: 1, x: -0.1419, y: 51.5014, lat: 51.5014, lng: -0.1419, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 3 },
-                { id: 2, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 5 },
-                { id: 3, x: -0.0994, y: 51.5076, lat: 51.5076, lng: -0.0994, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 2 },
-                { id: 4, x: -0.1195, y: 51.5033, lat: 51.5033, lng: -0.1195, window_start: 0, window_end: 0.5, service_time: 0.02, priority: 4 }
-            ],
-            max_shift_time: 1.0,
-            weights: {
-                w_dist: 1,
-                w_wait: 0.5,
-                w_late: 3,
-                w_priority: 2,
-                w_shift: 4
+            depot: {
+                x: -0.1246, y: 51.5007, lat: 51.5007, lng: -0.1246,
+                label: 'Westminster Bridge, London, England',
+                city: 'London', country: 'gb', street: 'Westminster Bridge', house_number: ''
             },
-            optimization: {
-                algorithm: '2opt',
-                max_iterations: 250,
-                no_improvement_limit: 40,
-                time_limit: null
-            }
+            stops: [
+                { id: 1, x: -0.1419, y: 51.5014, lat: 51.5014, lng: -0.1419,
+                  label: 'Buckingham Palace, London', city: 'London', country: 'gb',
+                  street: 'Buckingham Palace Road', house_number: '',
+                  window_start: 0, window_end: 30, service_time: 5, priority: 3 },
+                { id: 2, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754,
+                  label: 'Tower of London, EC3N 4AB', city: 'London', country: 'gb',
+                  street: 'Tower Hill', house_number: '',
+                  window_start: 0, window_end: 30, service_time: 5, priority: 5 },
+                { id: 3, x: -0.0994, y: 51.5076, lat: 51.5076, lng: -0.0994,
+                  label: 'St Paul\'s Cathedral, London', city: 'London', country: 'gb',
+                  street: 'St Paul\'s Churchyard', house_number: '',
+                  window_start: 0, window_end: 30, service_time: 5, priority: 2 },
+                { id: 4, x: -0.1195, y: 51.5033, lat: 51.5033, lng: -0.1195,
+                  label: 'Tate Modern, Bankside, London', city: 'London', country: 'gb',
+                  street: 'Bankside', house_number: '',
+                  window_start: 0, window_end: 30, service_time: 5, priority: 4 },
+            ],
+            max_shift_time: 60,
+            weights: { w_dist: 1, w_wait: 0.5, w_late: 3, w_priority: 2, w_shift: 4 },
+            optimization: { algorithm: '2opt', max_iterations: 250, no_improvement_limit: 40, time_limit: null }
         };
-        let stops = structuredClone(DEFAULT_STOPS);
-        let currentUser = null;
+
+        /* ============================================================
+         *  GLOBAL STATE
+         * ============================================================ */
+        let stops            = [];
+        let currentUser      = null;
         let currentScenarioId = null;
         let themeSwitchTimeoutId = null;
+        let selectedCountry  = { code: '', flag: '🌍', name: '' };
 
-        // ---- Leaflet map state ----
-        let leafletMap = null;
-        let currentTileLayer = null;
+        // Internal depot state (address + resolved coords)
+        let depotData = {
+            city: '', street: '', houseNumber: '',
+            label: null, lat: null, lng: null, geocoded: false
+        };
+
+        // Leaflet map state
+        let leafletMap         = null;
+        let currentTileLayer   = null;
         let currentLabelsLayer = null;
-        let currentRouteLayer = null;
+        let currentRouteLayer  = null;
         let currentMarkerGroup = null;
+        let osrmAbortController = null;
+
+        // Nominatim debounce timers
+        let depotDebounceTimer = null;
+        const stopDebounceTimers = {};
+
+        // AbortControllers for in-flight Nominatim requests (autocomplete + manual geocode)
+        let depotNominatimController = null;
+        const stopNominatimControllers = {};
+        let depotGeocodeInProgress = false;
+        const stopGeocodeInProgress = {};
 
         const TILE_CONFIGS = {
             streets: {
@@ -2065,6 +2525,36 @@
             walking: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
         };
 
+        /* ============================================================
+         *  UTILITY HELPERS
+         * ============================================================ */
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Safe numeric guard: explicitly rejects null/undefined (isFinite(null)===true in JS)
+        function isValidCoord(v) {
+            return v !== null && v !== undefined && isFinite(v);
+        }
+
+        // Returns true only if both coordinate values are present and finite
+        function areValidCoords(lat, lng) {
+            return isValidCoord(lat) && isValidCoord(lng);
+        }
+
+        // Parse a numeric field value, returning fallback when the result is NaN
+        // (unlike ??, which only catches null/undefined, not NaN)
+        function parseNumericField(value, fallback) {
+            const n = parseFloat(value);
+            return isNaN(n) ? fallback : n;
+        }
+
         function getStoredToken() {
             return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
         }
@@ -2088,7 +2578,7 @@
 
         function updateAuthUI() {
             const authActions = document.getElementById('authActions');
-            const authUser = document.getElementById('authUser');
+            const authUser    = document.getElementById('authUser');
             const authUserName = document.getElementById('authUserName');
 
             if (currentUser) {
@@ -2104,19 +2594,12 @@
 
         function buildAuthHeaders(headers = {}) {
             const token = getStoredToken();
-            if (!token) {
-                return headers;
-            }
-
-            return {
-                ...headers,
-                Authorization: `Bearer ${token}`
-            };
+            if (!token) return headers;
+            return { ...headers, Authorization: `Bearer ${token}` };
         }
 
         async function readApiError(response) {
             let detail = `HTTP ${response.status}`;
-
             try {
                 const data = await response.json();
                 if (typeof data.detail === 'string') {
@@ -2124,19 +2607,22 @@
                 } else if (Array.isArray(data.detail)) {
                     detail = data.detail.map(item => item.msg).filter(Boolean).join(' ');
                 }
-            } catch (error) {
-                // Ignore parse failures and fall back to the status-based message.
-            }
-
+            } catch (_) { /* ignore */ }
             return detail;
         }
 
+        function formatTimestamp(timestamp) {
+            return new Date(timestamp).toLocaleString();
+        }
+
+        /* ============================================================
+         *  THEME
+         * ============================================================ */
         function updateThemeToggle(theme) {
             const toggle = document.getElementById('themeToggle');
-            const icon = document.getElementById('themeToggleIcon');
-            const text = document.getElementById('themeToggleText');
+            const icon   = document.getElementById('themeToggleIcon');
+            const text   = document.getElementById('themeToggleText');
             const isDark = theme === 'dark';
-
             toggle.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
             icon.textContent = isDark ? '☀️' : '🌙';
             text.textContent = isDark ? 'Light mode' : 'Dark mode';
@@ -2145,19 +2631,15 @@
         function setTheme(theme, options = {}) {
             const { skipTransition = false } = options;
             const isDark = theme === 'dark';
-            const body = document.body;
+            const body   = document.body;
 
             const applyTheme = () => {
                 body.classList.toggle('dark-mode', isDark);
                 document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
                 localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
                 updateThemeToggle(isDark ? 'dark' : 'light');
-
                 if (window.latestOptimizationResult && document.getElementById('resultsPanel').style.display !== 'none') {
-                    // Only redraw canvas; the Leaflet map handles dark mode via CSS filters
-                    if (!leafletMap) {
-                        drawVisualization(window.latestOptimizationResult);
-                    }
+                    if (!leafletMap) drawVisualization(window.latestOptimizationResult);
                 }
             };
 
@@ -2192,8 +2674,744 @@
             });
         }
 
+        /* ============================================================
+         *  COUNTRY PICKER
+         * ============================================================ */
+        function renderCountryGrid(filter = '') {
+            const grid = document.getElementById('countryGrid');
+            const lf   = filter.toLowerCase();
+            const visible = filter
+                ? COUNTRIES.filter(c => c.name.toLowerCase().includes(lf) || c.code.includes(lf))
+                : COUNTRIES;
+
+            // Use data-* attributes instead of inline JS string literals to avoid
+            // single-quote injection in onclick contexts
+            grid.innerHTML = visible.map(c => `
+                <button class="country-btn${selectedCountry.code === c.code ? ' selected' : ''}"
+                        type="button"
+                        data-code="${escapeHtml(c.code)}"
+                        data-flag="${escapeHtml(c.flag)}"
+                        data-name="${escapeHtml(c.name)}">
+                    <span>${c.flag}</span><span>${escapeHtml(c.name)}</span>
+                </button>
+            `).join('');
+        }
+
+        // Delegated click handler on the country grid
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('countryGrid').addEventListener('click', e => {
+                const btn = e.target.closest('.country-btn');
+                if (!btn) return;
+                selectCountry(btn.dataset.code, btn.dataset.flag, btn.dataset.name);
+            });
+        });
+
+        function selectCountry(code, flag, name) {
+            selectedCountry = { code, flag, name };
+            renderCountryGrid(document.getElementById('countrySearch').value);
+            document.getElementById('countryConfirmBtn').disabled = false;
+        }
+
+        function filterCountries(value) {
+            renderCountryGrid(value);
+        }
+
+        function confirmCountry() {
+            if (!selectedCountry.code) return;
+            localStorage.setItem(COUNTRY_STORAGE_KEY, JSON.stringify(selectedCountry));
+            updateCountryBadge();
+            document.getElementById('countryPickerOverlay').classList.add('hidden');
+        }
+
+        function skipCountryPicker() {
+            document.getElementById('countryPickerOverlay').classList.add('hidden');
+        }
+
+        function openCountryPicker() {
+            renderCountryGrid();
+            document.getElementById('countrySearch').value = '';
+            document.getElementById('countryPickerOverlay').classList.remove('hidden');
+        }
+
+        function updateCountryBadge() {
+            const badge = document.getElementById('countryBadgeText');
+            if (selectedCountry.name) {
+                badge.textContent = `${selectedCountry.flag} ${selectedCountry.name}`;
+            } else {
+                badge.textContent = '🌍 Select country';
+            }
+        }
+
+        function initializeCountryPicker() {
+            const stored = localStorage.getItem(COUNTRY_STORAGE_KEY);
+            if (stored) {
+                let parsed = null;
+                try {
+                    parsed = JSON.parse(stored);
+                } catch (_) {
+                    // Stored value is not valid JSON; clear and show picker
+                }
+                // Validate required fields so partial/corrupt objects don't propagate.
+                // Also verify the code matches a known entry to reject arbitrary localStorage values.
+                const isValid = parsed
+                    && typeof parsed.code === 'string' && parsed.code.length === 2
+                    && typeof parsed.flag === 'string' && parsed.flag.length > 0
+                    && typeof parsed.name === 'string' && parsed.name.length > 0
+                    && COUNTRIES.some(c => c.code === parsed.code);
+                if (isValid) {
+                    selectedCountry = parsed;
+                    updateCountryBadge();
+                    return;
+                }
+                // Invalid stored data — clear it and fall through to show picker
+                localStorage.removeItem(COUNTRY_STORAGE_KEY);
+            }
+            // First visit or cleared invalid data — show the picker
+            renderCountryGrid();
+            document.getElementById('countryPickerOverlay').classList.remove('hidden');
+        }
+
+        /* ============================================================
+         *  NOMINATIM GEOCODING / AUTOCOMPLETE
+         * ============================================================ */
+        async function nominatimSearch(query, countryCode, limit = 6, signal = undefined) {
+            const params = new URLSearchParams({
+                format: 'json',
+                q: query,
+                limit: String(limit),
+                addressdetails: '1',
+                'accept-language': 'en'
+            });
+            if (countryCode) params.set('countrycodes', countryCode);
+            const fetchOptions = {};
+            if (signal) fetchOptions.signal = signal;
+            const resp = await fetch(
+                `https://nominatim.openstreetmap.org/search?${params}`,
+                fetchOptions
+            );
+            if (!resp.ok) throw new Error(`Nominatim search failed with status ${resp.status}`);
+            return resp.json();
+        }
+
+        function buildNominatimQuery(street, city, country) {
+            return [street, city, country].filter(Boolean).join(', ');
+        }
+
+        function extractAddress(result) {
+            const a = result.address || {};
+            return {
+                lat:    parseFloat(result.lat),
+                lng:    parseFloat(result.lon),
+                label:  result.display_name,
+                street: a.road || a.pedestrian || a.footway || a.path || '',
+                city:   a.city || a.town || a.village || a.municipality || '',
+            };
+        }
+
+        // ---- Depot geocoding ----
+        function onDepotCityInput() {
+            depotData.geocoded = false;
+            setDepotStatus(false, 'Not geocoded yet');
+        }
+
+        function onDepotFieldChange() {
+            depotData.geocoded = false;
+            setDepotStatus(false, 'Not geocoded yet');
+        }
+
+        function onDepotStreetInput(value) {
+            depotData.geocoded = false;
+            setDepotStatus(false, 'Not geocoded yet');
+            clearTimeout(depotDebounceTimer);
+            const dropdown = document.getElementById('depotStreetDropdown');
+            if (value.trim().length < 3) {
+                dropdown.classList.remove('open');
+                return;
+            }
+            depotDebounceTimer = setTimeout(() => fetchDepotSuggestions(value.trim()), 350);
+        }
+
+        async function fetchDepotSuggestions(streetQuery) {
+            const city    = document.getElementById('depotCity').value.trim();
+            const query   = buildNominatimQuery(streetQuery, city, selectedCountry.name);
+            const dropdown = document.getElementById('depotStreetDropdown');
+
+            // Abort any previous in-flight autocomplete request
+            if (depotNominatimController) depotNominatimController.abort();
+            depotNominatimController = new AbortController();
+
+            dropdown.innerHTML = '<div class="autocomplete-hint">Searching…</div>';
+            dropdown.classList.add('open');
+
+            try {
+                const results = await nominatimSearch(query, selectedCountry.code, 6, depotNominatimController.signal);
+                if (!results.length) {
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
+                    return;
+                }
+                dropdown.innerHTML = results.map((r, i) => {
+                    const addr = extractAddress(r);
+                    return `<div class="autocomplete-item"
+                        onmousedown="selectDepotSuggestion(${i})"
+                        data-lat="${addr.lat}" data-lng="${addr.lng}"
+                        data-label="${escapeHtml(addr.label)}"
+                        data-street="${escapeHtml(addr.street)}"
+                        data-city="${escapeHtml(addr.city)}"
+                    >${escapeHtml(addr.label)}</div>`;
+                }).join('');
+            } catch (err) {
+                if (err.name === 'AbortError') return; // Superseded by newer request
+                dropdown.innerHTML = `<div class="autocomplete-hint">Search failed: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function selectDepotSuggestion(idx) {
+            const dropdown = document.getElementById('depotStreetDropdown');
+            const item = dropdown.querySelectorAll('.autocomplete-item')[idx];
+            if (!item) return;
+
+            const lat    = parseFloat(item.dataset.lat);
+            const lng    = parseFloat(item.dataset.lng);
+            const label  = item.dataset.label;
+            const street = item.dataset.street;
+            const city   = item.dataset.city;
+
+            if (street) document.getElementById('depotStreet').value = street;
+            if (city)   document.getElementById('depotCity').value   = city;
+
+            applyDepotGeocoords(lat, lng, label,
+                street || document.getElementById('depotStreet').value,
+                city   || document.getElementById('depotCity').value);
+
+            dropdown.classList.remove('open');
+        }
+
+        async function geocodeDepot() {
+            const city   = document.getElementById('depotCity').value.trim();
+            const street = document.getElementById('depotStreet').value.trim();
+            const house  = document.getElementById('depotHouse').value.trim();
+
+            if (!city && !street) {
+                setDepotStatus(false, 'Enter a city and/or street first');
+                return;
+            }
+
+            // Prevent concurrent geocode requests for the depot
+            if (depotGeocodeInProgress) return;
+            depotGeocodeInProgress = true;
+
+            // Abort any pending autocomplete request so its result doesn't override ours
+            if (depotNominatimController) { depotNominatimController.abort(); depotNominatimController = null; }
+
+            setDepotStatus(false, 'Geocoding…');
+
+            const controller = new AbortController();
+            try {
+                const query   = buildNominatimQuery([house, street].filter(Boolean).join(' '), city, selectedCountry.name);
+                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal);
+
+                if (!results.length) {
+                    setDepotStatus(false, '⚠️ Address not found - try different spelling');
+                    return;
+                }
+
+                const addr = extractAddress(results[0]);
+                applyDepotGeocoords(addr.lat, addr.lng, addr.label,
+                    street || addr.street, city || addr.city);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    setDepotStatus(false, `⚠️ Geocoding failed: ${err.message}`);
+                }
+            } finally {
+                depotGeocodeInProgress = false;
+            }
+        }
+
+        function applyDepotGeocoords(lat, lng, label, street, city) {
+            // Reject coordinates from malformed geocoder responses
+            if (!areValidCoords(lat, lng)) {
+                setDepotStatus(false, '⚠️ Geocoder returned invalid coordinates');
+                return;
+            }
+
+            depotData.lat        = lat;
+            depotData.lng        = lng;
+            depotData.label      = label;
+            depotData.street     = street;
+            depotData.city       = city;
+            depotData.houseNumber = document.getElementById('depotHouse').value.trim();
+            depotData.geocoded   = true;
+
+            document.getElementById('depotLat').value = lat;
+            document.getElementById('depotLng').value = lng;
+            document.getElementById('depotX').value   = lng;
+            document.getElementById('depotY').value   = lat;
+
+            setDepotStatus(true, `✅ ${label}`);
+        }
+
+        function setDepotStatus(resolved, text) {
+            const el = document.getElementById('depotAddressStatus');
+            el.className = `address-status ${resolved ? 'resolved' : 'unresolved'}`;
+            el.textContent = text;
+        }
+
+        function hideDropdown(dropdownId, delay) {
+            setTimeout(() => {
+                const el = document.getElementById(dropdownId);
+                if (el) el.classList.remove('open');
+            }, delay || 150);
+        }
+
+        // ---- Stop geocoding ----
+        function onStopCityInput(idx) {
+            stops[idx].geocoded = false;
+            setStopStatus(idx, false, 'Not geocoded yet');
+        }
+
+        function onStopFieldChange(idx) {
+            stops[idx].geocoded = false;
+            setStopStatus(idx, false, 'Not geocoded yet');
+        }
+
+        function onStopStreetInput(idx, value) {
+            stops[idx].geocoded = false;
+            setStopStatus(idx, false, 'Not geocoded yet');
+            clearTimeout(stopDebounceTimers[idx]);
+            const dropdownId = `stopStreetDropdown_${idx}`;
+            const dropdown = document.getElementById(dropdownId);
+            if (!dropdown) return;
+            if (value.trim().length < 3) {
+                dropdown.classList.remove('open');
+                return;
+            }
+            stopDebounceTimers[idx] = setTimeout(() => fetchStopSuggestions(idx, value.trim()), 350);
+        }
+
+        async function fetchStopSuggestions(idx, streetQuery) {
+            const cityInput  = document.getElementById(`stopCity_${idx}`);
+            const city       = cityInput ? cityInput.value.trim() : (stops[idx] ? stops[idx].city || '' : '');
+            const query      = buildNominatimQuery(streetQuery, city, selectedCountry.name);
+            const dropdown   = document.getElementById(`stopStreetDropdown_${idx}`);
+            if (!dropdown) return;
+
+            // Abort any previous in-flight autocomplete for this stop
+            if (stopNominatimControllers[idx]) stopNominatimControllers[idx].abort();
+            stopNominatimControllers[idx] = new AbortController();
+
+            dropdown.innerHTML = '<div class="autocomplete-hint">Searching…</div>';
+            dropdown.classList.add('open');
+
+            try {
+                const results = await nominatimSearch(query, selectedCountry.code, 6, stopNominatimControllers[idx].signal);
+                if (!results.length) {
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
+                    return;
+                }
+                dropdown.innerHTML = results.map((r, i) => {
+                    const addr = extractAddress(r);
+                    return `<div class="autocomplete-item"
+                        onmousedown="selectStopSuggestion(${idx}, ${i})"
+                        data-lat="${addr.lat}" data-lng="${addr.lng}"
+                        data-label="${escapeHtml(addr.label)}"
+                        data-street="${escapeHtml(addr.street)}"
+                        data-city="${escapeHtml(addr.city)}"
+                    >${escapeHtml(addr.label)}</div>`;
+                }).join('');
+            } catch (err) {
+                if (err.name === 'AbortError') return; // Superseded by newer request
+                dropdown.innerHTML = `<div class="autocomplete-hint">Search failed: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function selectStopSuggestion(idx, itemIdx) {
+            const dropdown = document.getElementById(`stopStreetDropdown_${idx}`);
+            const item = dropdown ? dropdown.querySelectorAll('.autocomplete-item')[itemIdx] : null;
+            if (!item) return;
+
+            const lat    = parseFloat(item.dataset.lat);
+            const lng    = parseFloat(item.dataset.lng);
+            const label  = item.dataset.label;
+            const street = item.dataset.street;
+            const city   = item.dataset.city;
+
+            const streetInput = document.getElementById(`stopStreet_${idx}`);
+            const cityInput   = document.getElementById(`stopCity_${idx}`);
+            if (street && streetInput) streetInput.value = street;
+            if (city   && cityInput)   cityInput.value   = city;
+
+            applyStopGeocoords(idx, lat, lng, label,
+                street || (streetInput ? streetInput.value : ''),
+                city   || (cityInput   ? cityInput.value   : ''));
+
+            dropdown.classList.remove('open');
+        }
+
+        async function geocodeStop(idx) {
+            const cityInput   = document.getElementById(`stopCity_${idx}`);
+            const streetInput = document.getElementById(`stopStreet_${idx}`);
+            const houseInput  = document.getElementById(`stopHouse_${idx}`);
+
+            const city   = cityInput   ? cityInput.value.trim()   : '';
+            const street = streetInput ? streetInput.value.trim() : '';
+            const house  = houseInput  ? houseInput.value.trim()  : '';
+
+            if (!city && !street) {
+                setStopStatus(idx, false, 'Enter a city and/or street first');
+                return;
+            }
+
+            // Prevent concurrent geocode requests for the same stop
+            if (stopGeocodeInProgress[idx]) return;
+            stopGeocodeInProgress[idx] = true;
+
+            // Abort any pending autocomplete so it doesn't override the geocode result
+            if (stopNominatimControllers[idx]) { stopNominatimControllers[idx].abort(); stopNominatimControllers[idx] = null; }
+
+            setStopStatus(idx, false, 'Geocoding…');
+
+            const controller = new AbortController();
+            try {
+                const query   = buildNominatimQuery([house, street].filter(Boolean).join(' '), city, selectedCountry.name);
+                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal);
+
+                if (!results.length) {
+                    setStopStatus(idx, false, '⚠️ Address not found - try different spelling');
+                    return;
+                }
+
+                const addr = extractAddress(results[0]);
+                applyStopGeocoords(idx, addr.lat, addr.lng, addr.label,
+                    street || addr.street, city || addr.city);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    setStopStatus(idx, false, `⚠️ Geocoding failed: ${err.message}`);
+                }
+            } finally {
+                stopGeocodeInProgress[idx] = false;
+            }
+        }
+
+        function applyStopGeocoords(idx, lat, lng, label, street, city) {
+            // Guard: stop may have been removed while an async geocode was in-flight
+            if (!stops[idx]) return;
+
+            // Guard: reject invalid coordinates from malformed geocoder responses
+            if (!areValidCoords(lat, lng)) {
+                setStopStatus(idx, false, '⚠️ Geocoder returned invalid coordinates');
+                return;
+            }
+
+            stops[idx].lat         = lat;
+            stops[idx].lng         = lng;
+            stops[idx].x           = lng;
+            stops[idx].y           = lat;
+            stops[idx].label       = label;
+            stops[idx].street      = street;
+            stops[idx].city        = city;
+            stops[idx].houseNumber = document.getElementById(`stopHouse_${idx}`).value.trim();
+            stops[idx].geocoded    = true;
+            setStopStatus(idx, true, `✅ ${label}`);
+        }
+
+        function setStopStatus(idx, resolved, text) {
+            const el = document.getElementById(`stopAddressStatus_${idx}`);
+            if (!el) return;
+            el.className = `address-status ${resolved ? 'resolved' : 'unresolved'}`;
+            el.textContent = text;
+        }
+
+        /* ============================================================
+         *  STOP RENDERING
+         * ============================================================ */
+        function renderStops() {
+            const list = document.getElementById('stopsList');
+            if (stops.length === 0) {
+                list.innerHTML = '<div class="collection-empty" style="margin:8px 0;">No stops yet — click "Add Stop" to begin.</div>';
+                return;
+            }
+
+            list.innerHTML = stops.map((stop, idx) => `
+                <div class="stop-card" id="stopCard_${idx}">
+                    <div class="stop-header">
+                        <span class="stop-id">Stop ${stop.id}</span>
+                        <button class="stop-remove-btn" type="button" onclick="removeStop(${idx})">Remove</button>
+                    </div>
+
+                    <!-- City & House number -->
+                    <div class="stop-addr-grid">
+                        <div class="form-group" style="margin:0;">
+                            <label>City</label>
+                            <input type="text" id="stopCity_${idx}" value="${escapeHtml(stop.city || '')}"
+                                   placeholder="City" autocomplete="off"
+                                   oninput="stops[${idx}].city=this.value; onStopCityInput(${idx})">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label>House No.</label>
+                            <input type="text" id="stopHouse_${idx}" value="${escapeHtml(stop.houseNumber || '')}"
+                                   placeholder="No." autocomplete="off"
+                                   oninput="stops[${idx}].houseNumber=this.value; onStopFieldChange(${idx})">
+                        </div>
+                    </div>
+
+                    <!-- Street autocomplete -->
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label>Street</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="stopStreet_${idx}" value="${escapeHtml(stop.street || '')}"
+                                   placeholder="Street name…" autocomplete="off"
+                                   oninput="stops[${idx}].street=this.value; onStopStreetInput(${idx},this.value)"
+                                   onblur="hideDropdown('stopStreetDropdown_${idx}', 200)">
+                            <div class="autocomplete-dropdown" id="stopStreetDropdown_${idx}"></div>
+                        </div>
+                    </div>
+
+                    <!-- Geocode button & status -->
+                    <div class="address-row" style="margin-bottom:10px;">
+                        <button class="geocode-btn" type="button" onclick="geocodeStop(${idx})">📍 Geocode</button>
+                        <div class="address-status ${stop.geocoded ? 'resolved' : 'unresolved'}"
+                             id="stopAddressStatus_${idx}">
+                            ${stop.geocoded ? '✅ ' + escapeHtml(stop.label || '') : 'Not geocoded yet'}
+                        </div>
+                    </div>
+
+                    <!-- Timing & priority -->
+                    <div class="stop-timing-grid">
+                        <div class="stop-timing-col">
+                            <label>W. Start</label>
+                            <input type="number" value="${stop.windowStart}" placeholder="0"
+                                   onchange="stops[${idx}].windowStart=parseNumericField(this.value,0)">
+                        </div>
+                        <div class="stop-timing-col">
+                            <label>W. End</label>
+                            <input type="number" value="${stop.windowEnd}" placeholder="480"
+                                   onchange="stops[${idx}].windowEnd=parseNumericField(this.value,480)">
+                        </div>
+                        <div class="stop-timing-col">
+                            <label>Service (min)</label>
+                            <input type="number" value="${stop.serviceTime}" placeholder="5" step="0.1"
+                                   onchange="stops[${idx}].serviceTime=Math.max(0,parseNumericField(this.value,0))">
+                        </div>
+                        <div class="stop-timing-col">
+                            <label>Priority</label>
+                            <input type="number" value="${stop.priority}" min="1" max="5"
+                                   onchange="stops[${idx}].priority=Math.min(5,Math.max(1,parseInt(this.value)||1))">
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addStop() {
+            const newId = stops.length > 0 ? Math.max(...stops.map(s => s.id)) + 1 : 1;
+            stops.push({
+                id: newId,
+                city: depotData.city || '',
+                street: '',
+                houseNumber: '',
+                label: null,
+                lat: null, lng: null,
+                x: 0, y: 0,
+                windowStart: 0,
+                windowEnd: 480,
+                serviceTime: 10,
+                priority: 1,
+                geocoded: false
+            });
+            renderStops();
+            // Scroll the new card into view
+            const card = document.getElementById(`stopCard_${stops.length - 1}`);
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function removeStop(idx) {
+            // Cancel any pending debounce timer for this stop before removing
+            if (stopDebounceTimers[idx] !== undefined) {
+                clearTimeout(stopDebounceTimers[idx]);
+                delete stopDebounceTimers[idx];
+            }
+            // Cancel any in-flight Nominatim request for this stop
+            if (stopNominatimControllers[idx]) {
+                stopNominatimControllers[idx].abort();
+                delete stopNominatimControllers[idx];
+            }
+            stops.splice(idx, 1);
+            renderStops();
+        }
+
+        /* ============================================================
+         *  ROUTE PAYLOAD BUILDER
+         * ============================================================ */
+        function buildRoutePayload() {
+            // Validate depot geocoded
+            const depotLatVal = parseFloat(document.getElementById('depotLat').value);
+            const depotLngVal = parseFloat(document.getElementById('depotLng').value);
+            const depotXVal   = parseFloat(document.getElementById('depotX').value);
+            const depotYVal   = parseFloat(document.getElementById('depotY').value);
+
+            if (!areValidCoords(depotLatVal, depotLngVal)) {
+                throw new Error('Depot address has not been geocoded. Please geocode the depot first.');
+            }
+
+            // Validate stops
+            for (const stop of stops) {
+                if (!stop.geocoded || !areValidCoords(stop.lat, stop.lng)) {
+                    throw new Error(`Stop ${stop.id} has not been geocoded. Please geocode all stops before optimizing.`);
+                }
+            }
+
+            // Validate settings fields
+            const maxShift = parseFloat(document.getElementById('maxShiftTime').value);
+            if (!isFinite(maxShift) || maxShift <= 0) {
+                throw new Error('Max Shift Time must be a positive number.');
+            }
+            const maxIter = parseInt(document.getElementById('maxIterations').value, 10);
+            if (!isFinite(maxIter) || maxIter < 1) {
+                throw new Error('Max Iterations must be a positive integer.');
+            }
+            const noImprove = parseInt(document.getElementById('noImprovementLimit').value, 10);
+            if (!isFinite(noImprove) || noImprove < 1) {
+                throw new Error('No Improvement Limit must be a positive integer.');
+            }
+
+            const timeLimitValue = document.getElementById('timeLimit').value;
+            const timeLimit = timeLimitValue === '' ? null : parseFloat(timeLimitValue);
+            if (timeLimit !== null && (!isFinite(timeLimit) || timeLimit < 0)) {
+                throw new Error('Time Limit must be empty (unlimited) or a non-negative number of seconds.');
+            }
+
+            const weights = {
+                w_dist:     parseFloat(document.getElementById('weightDistance').value),
+                w_wait:     parseFloat(document.getElementById('weightWait').value),
+                w_late:     parseFloat(document.getElementById('weightLate').value),
+                w_priority: parseFloat(document.getElementById('weightPriority').value),
+                w_shift:    parseFloat(document.getElementById('weightShift').value)
+            };
+            for (const [key, val] of Object.entries(weights)) {
+                if (!isFinite(val) || val < 0) {
+                    throw new Error(`Weight "${key}" must be a non-negative number.`);
+                }
+            }
+
+            return {
+                depot: {
+                    x: depotXVal,
+                    y: depotYVal,
+                    lat: depotLatVal,
+                    lng: depotLngVal,
+                    label: depotData.label || null,
+                    city: depotData.city || null,
+                    country: selectedCountry.code || null,
+                    street: depotData.street || null,
+                    house_number: depotData.houseNumber || null
+                },
+                stops: stops.map(s => ({
+                    id: s.id,
+                    x: s.x,
+                    y: s.y,
+                    lat: s.lat,
+                    lng: s.lng,
+                    label: s.label || null,
+                    city: s.city || null,
+                    country: selectedCountry.code || null,
+                    street: s.street || null,
+                    house_number: s.houseNumber || null,
+                    window_start: s.windowStart,
+                    window_end: s.windowEnd,
+                    service_time: s.serviceTime,
+                    priority: s.priority
+                })),
+                max_shift_time: maxShift,
+                weights,
+                optimization: {
+                    algorithm:            document.getElementById('algorithm').value,
+                    max_iterations:       maxIter,
+                    no_improvement_limit: noImprove,
+                    time_limit:           timeLimit
+                }
+            };
+        }
+
+        function applyRoutePayload(payload) {
+            // Tear down any active map so the new coords take effect cleanly.
+            destroyLeafletMap();
+            document.getElementById('visualization').style.display = 'block';
+            document.getElementById('visualization').innerHTML = '';
+            document.getElementById('mapError').style.display = 'none';
+
+            // Settings
+            document.getElementById('maxShiftTime').value          = payload.max_shift_time;
+            document.getElementById('algorithm').value             = payload.optimization?.algorithm || '2opt';
+            document.getElementById('maxIterations').value         = payload.optimization?.max_iterations ?? 500;
+            document.getElementById('noImprovementLimit').value    = payload.optimization?.no_improvement_limit ?? 100;
+            document.getElementById('timeLimit').value             = payload.optimization?.time_limit ?? '';
+            document.getElementById('weightDistance').value        = payload.weights?.w_dist ?? 1;
+            document.getElementById('weightWait').value            = payload.weights?.w_wait ?? 0.5;
+            document.getElementById('weightLate').value            = payload.weights?.w_late ?? 2;
+            document.getElementById('weightPriority').value        = payload.weights?.w_priority ?? 1;
+            document.getElementById('weightShift').value           = payload.weights?.w_shift ?? 4;
+
+            // Depot
+            const d = payload.depot;
+            document.getElementById('depotCity').value   = d.city   || '';
+            document.getElementById('depotStreet').value = d.street || '';
+            document.getElementById('depotHouse').value  = d.house_number || '';
+
+            const hasGeo = areValidCoords(d.lat, d.lng);
+            if (hasGeo) {
+                document.getElementById('depotLat').value = d.lat;
+                document.getElementById('depotLng').value = d.lng;
+                document.getElementById('depotX').value   = d.lng;
+                document.getElementById('depotY').value   = d.lat;
+            } else {
+                // Fallback for old payloads with raw x/y only
+                document.getElementById('depotX').value = d.x;
+                document.getElementById('depotY').value = d.y;
+                document.getElementById('depotLat').value = '';
+                document.getElementById('depotLng').value = '';
+            }
+
+            const depotLabel = d.label || (hasGeo ? `Lat ${d.lat?.toFixed(5)}, Lng ${d.lng?.toFixed(5)}` : `x=${d.x}, y=${d.y}`);
+            depotData = {
+                city: d.city || '',
+                street: d.street || '',
+                houseNumber: d.house_number || '',
+                label: d.label || depotLabel,
+                lat: hasGeo ? d.lat : null,
+                lng: hasGeo ? d.lng : null,
+                geocoded: hasGeo
+            };
+            setDepotStatus(hasGeo, hasGeo ? `✅ ${depotLabel}` : `⚠️ ${depotLabel} (not geocoded)`);
+
+            // Stops
+            stops = payload.stops.map(stop => {
+                const sg = areValidCoords(stop.lat, stop.lng);
+                return {
+                    id: stop.id,
+                    city: stop.city || '',
+                    street: stop.street || '',
+                    houseNumber: stop.house_number || '',
+                    label: stop.label || (sg ? `Lat ${stop.lat?.toFixed(5)}, Lng ${stop.lng?.toFixed(5)}` : null),
+                    lat: sg ? stop.lat : null,
+                    lng: sg ? stop.lng : null,
+                    x: sg ? stop.lng : stop.x,
+                    y: sg ? stop.lat : stop.y,
+                    windowStart: stop.window_start,
+                    windowEnd:   stop.window_end,
+                    serviceTime: stop.service_time,
+                    priority:    stop.priority,
+                    geocoded: sg
+                };
+            });
+
+            renderStops();
+        }
+
+        /* ============================================================
+         *  AUTH
+         * ============================================================ */
         function clearAuthMessage() {
-            document.getElementById('authError').style.display = 'none';
+            document.getElementById('authError').style.display   = 'none';
             document.getElementById('authSuccess').style.display = 'none';
         }
 
@@ -2225,535 +3443,45 @@
 
         async function initializeAuth() {
             updateAuthUI();
-
             const token = getStoredToken();
             if (!token) {
                 renderScenarioList([]);
                 renderHistoryList([]);
                 return;
             }
-
             try {
-                const response = await fetch('/me', {
-                    headers: buildAuthHeaders()
-                });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
+                const response = await fetch('/me', { headers: buildAuthHeaders() });
+                if (!response.ok) throw new Error(await readApiError(response));
                 currentUser = await response.json();
                 updateAuthUI();
                 await Promise.all([refreshScenarios(), refreshHistory()]);
-            } catch (error) {
+            } catch (_) {
                 clearAuthSession();
             }
         }
 
-        function buildRoutePayload() {
-            const timeLimitValue = document.getElementById('timeLimit').value;
-            const depotLatRaw = document.getElementById('depotLat').value;
-            const depotLngRaw = document.getElementById('depotLng').value;
-            const depotLatParsed = depotLatRaw !== '' ? parseFloat(depotLatRaw) : null;
-            const depotLngParsed = depotLngRaw !== '' ? parseFloat(depotLngRaw) : null;
-
-            return {
-                depot: {
-                    x: parseFloat(document.getElementById('depotX').value),
-                    y: parseFloat(document.getElementById('depotY').value),
-                    lat: (depotLatParsed !== null && isFinite(depotLatParsed)) ? depotLatParsed : null,
-                    lng: (depotLngParsed !== null && isFinite(depotLngParsed)) ? depotLngParsed : null
-                },
-                stops: stops.map(s => ({
-                    id: s.id,
-                    x: s.x,
-                    y: s.y,
-                    lat: (s.lat !== null && isFinite(s.lat)) ? s.lat : null,
-                    lng: (s.lng !== null && isFinite(s.lng)) ? s.lng : null,
-                    window_start: s.windowStart,
-                    window_end: s.windowEnd,
-                    service_time: s.serviceTime,
-                    priority: s.priority
-                })),
-                max_shift_time: parseFloat(document.getElementById('maxShiftTime').value),
-                weights: {
-                    w_dist: parseFloat(document.getElementById('weightDistance').value),
-                    w_wait: parseFloat(document.getElementById('weightWait').value),
-                    w_late: parseFloat(document.getElementById('weightLate').value),
-                    w_priority: parseFloat(document.getElementById('weightPriority').value),
-                    w_shift: parseFloat(document.getElementById('weightShift').value)
-                },
-                optimization: {
-                    algorithm: document.getElementById('algorithm').value,
-                    max_iterations: parseInt(document.getElementById('maxIterations').value, 10),
-                    no_improvement_limit: parseInt(document.getElementById('noImprovementLimit').value, 10),
-                    time_limit: timeLimitValue === '' ? null : parseFloat(timeLimitValue)
-                }
-            };
-        }
-
-        function applyRoutePayload(payload) {
-            // Tear down any active map so the new coords take effect cleanly.
-            destroyLeafletMap();
-            document.getElementById('visualization').style.display = 'block';
-            document.getElementById('visualization').innerHTML = '';
-            document.getElementById('mapError').style.display = 'none';
-
-            document.getElementById('depotX').value = payload.depot.x;
-            document.getElementById('depotY').value = payload.depot.y;
-            document.getElementById('depotLat').value = payload.depot.lat ?? '';
-            document.getElementById('depotLng').value = payload.depot.lng ?? '';
-            document.getElementById('maxShiftTime').value = payload.max_shift_time;
-            document.getElementById('algorithm').value = payload.optimization?.algorithm || '2opt';
-            document.getElementById('maxIterations').value = payload.optimization?.max_iterations ?? 500;
-            document.getElementById('noImprovementLimit').value = payload.optimization?.no_improvement_limit ?? 100;
-            document.getElementById('timeLimit').value = payload.optimization?.time_limit ?? '';
-            document.getElementById('weightDistance').value = payload.weights?.w_dist ?? 1;
-            document.getElementById('weightWait').value = payload.weights?.w_wait ?? 0.5;
-            document.getElementById('weightLate').value = payload.weights?.w_late ?? 2;
-            document.getElementById('weightPriority').value = payload.weights?.w_priority ?? 1;
-            document.getElementById('weightShift').value = payload.weights?.w_shift ?? 4;
-
-            stops = payload.stops.map(stop => ({
-                id: stop.id,
-                x: stop.x,
-                y: stop.y,
-                lat: stop.lat ?? null,
-                lng: stop.lng ?? null,
-                windowStart: stop.window_start,
-                windowEnd: stop.window_end,
-                serviceTime: stop.service_time,
-                priority: stop.priority
-            }));
-
-            renderStops();
-        }
-
         function requireAuth(actionLabel) {
-            if (getStoredToken()) {
-                return true;
-            }
-
+            if (getStoredToken()) return true;
             showMessage('error', `${actionLabel} requires a signed-in account.`);
             openAuthModal('login');
             return false;
         }
 
-        function formatTimestamp(timestamp) {
-            return new Date(timestamp).toLocaleString();
-        }
-
-        function renderScenarioList(items) {
-            const list = document.getElementById('scenarioList');
-
-            if (!currentUser) {
-                list.innerHTML = '<div class="collection-empty">Sign in to save and reload scenarios.</div>';
-                return;
-            }
-
-            if (!items.length) {
-                list.innerHTML = '<div class="collection-empty">No saved scenarios yet.</div>';
-                return;
-            }
-
-            list.innerHTML = items.map(item => `
-                <div class="collection-item">
-                    <div class="collection-item-head">
-                        <div>
-                            <div class="collection-item-title">${item.name}</div>
-                            <div class="collection-item-meta">${item.stop_count} stops · Updated ${formatTimestamp(item.updated_at)}</div>
-                        </div>
-                        <div class="collection-item-actions">
-                            <button class="btn btn-secondary btn-small" onclick="loadScenario(${item.id})">Load</button>
-                            <button class="btn btn-danger btn-small" onclick="deleteScenario(${item.id})">Delete</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderHistoryList(items) {
-            const list = document.getElementById('historyList');
-
-            if (!currentUser) {
-                list.innerHTML = '<div class="collection-empty">Sign in to see optimization history.</div>';
-                return;
-            }
-
-            if (!items.length) {
-                list.innerHTML = '<div class="collection-empty">No optimization runs recorded yet.</div>';
-                return;
-            }
-
-            list.innerHTML = items.map(item => `
-                <div class="collection-item">
-                    <div class="collection-item-head">
-                        <div>
-                            <div class="collection-item-title">${item.scenario_name || 'Ad hoc route'} · ${item.algorithm_used}</div>
-                            <div class="collection-item-meta">
-                                Cost ${item.optimized_cost.toFixed(2)} · ${item.stop_count} stops · ${item.feasible ? 'Feasible' : 'Infeasible'}<br>
-                                ${formatTimestamp(item.created_at)}
-                            </div>
-                        </div>
-                        <div class="collection-item-actions">
-                            <button class="btn btn-secondary btn-small" onclick="loadHistory(${item.id})">Load</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function refreshScenarios() {
-            if (!currentUser) {
-                renderScenarioList([]);
-                return;
-            }
-
-            try {
-                const response = await fetch('/scenarios', {
-                    headers: buildAuthHeaders()
-                });
-
-                if (response.status === 401) {
-                    clearAuthSession();
-                    throw new Error('Session expired. Please sign in again.');
-                }
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
-                renderScenarioList(await response.json());
-            } catch (error) {
-                showMessage('error', error.message);
-            }
-        }
-
-        async function refreshHistory() {
-            if (!currentUser) {
-                renderHistoryList([]);
-                return;
-            }
-
-            try {
-                const response = await fetch('/history?limit=12', {
-                    headers: buildAuthHeaders()
-                });
-
-                if (response.status === 401) {
-                    clearAuthSession();
-                    throw new Error('Session expired. Please sign in again.');
-                }
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
-                renderHistoryList(await response.json());
-            } catch (error) {
-                showMessage('error', error.message);
-            }
-        }
-
-        function renderStops() {
-            const list = document.getElementById('stopsList');
-            if (stops.length === 0) {
-                list.innerHTML = '';
-                return;
-            }
-
-            list.innerHTML = stops.map((stop, idx) => `
-                <div class="stop-card">
-                    <div class="stop-header">
-                        <span class="stop-id">Stop ${stop.id}</span>
-                        <button class="stop-remove-btn" onclick="removeStop(${idx})">Remove</button>
-                    </div>
-                    <div class="stop-grid">
-                        <div class="stop-grid-col">
-                            <label>X</label>
-                            <input type="number" value="${stop.x}" placeholder="X" step="0.1" 
-                                onchange="stops[${idx}].x = parseFloat(this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>Y</label>
-                            <input type="number" value="${stop.y}" placeholder="Y" step="0.1" 
-                                onchange="stops[${idx}].y = parseFloat(this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>Lat <span class="field-optional">map</span></label>
-                            <input type="number" value="${stop.lat ?? ''}" placeholder="e.g. 51.50" step="0.0001"
-                                onchange="updateStopCoord(${idx}, 'lat', this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>Lng <span class="field-optional">map</span></label>
-                            <input type="number" value="${stop.lng ?? ''}" placeholder="e.g. -0.12" step="0.0001"
-                                onchange="updateStopCoord(${idx}, 'lng', this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>W. Start</label>
-                            <input type="number" value="${stop.windowStart}" placeholder="W.Start" 
-                                onchange="stops[${idx}].windowStart = parseFloat(this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>W. End</label>
-                            <input type="number" value="${stop.windowEnd}" placeholder="W.End" 
-                                onchange="stops[${idx}].windowEnd = parseFloat(this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>Service</label>
-                            <input type="number" value="${stop.serviceTime}" placeholder="Service" step="0.1"
-                                onchange="stops[${idx}].serviceTime = parseFloat(this.value)">
-                        </div>
-                        <div class="stop-grid-col">
-                            <label>Priority</label>
-                            <input type="number" value="${stop.priority}" placeholder="Prio" min="1" max="5"
-                                onchange="stops[${idx}].priority = parseInt(this.value)">
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function addStop() {
-            const newId = Math.max(...stops.map(s => s.id), 0) + 1;
-            stops.push({
-                id: newId,
-                x: Math.random() * 20,
-                y: Math.random() * 20,
-                lat: null,
-                lng: null,
-                windowStart: 0,
-                windowEnd: 100,
-                serviceTime: 5,
-                priority: 1
-            });
-            renderStops();
-        }
-
-        function removeStop(idx) {
-            stops.splice(idx, 1);
-            renderStops();
-        }
-
-        function updateStopCoord(idx, field, rawValue) {
-            const parsed = parseFloat(rawValue);
-            stops[idx][field] = (rawValue !== '' && isFinite(parsed)) ? parsed : null;
-        }
-
-        function clearForm() {
-            document.getElementById('depotX').value = 0;
-            document.getElementById('depotY').value = 0;
-            document.getElementById('depotLat').value = '';
-            document.getElementById('depotLng').value = '';
-            document.getElementById('maxShiftTime').value = 480;
-            document.getElementById('algorithm').value = '2opt';
-            document.getElementById('maxIterations').value = 500;
-            document.getElementById('noImprovementLimit').value = 100;
-            document.getElementById('timeLimit').value = '';
-            document.getElementById('weightDistance').value = 1;
-            document.getElementById('weightWait').value = 0.5;
-            document.getElementById('weightLate').value = 2;
-            document.getElementById('weightPriority').value = 1;
-            document.getElementById('weightShift').value = 4;
-            document.getElementById('scenarioName').value = '';
-            document.getElementById('resultsPanel').style.display = 'none';
-            document.getElementById('emptyState').style.display = 'block';
-            document.getElementById('error').style.display = 'none';
-            document.getElementById('success').style.display = 'none';
-            currentScenarioId = null;
-            window.latestOptimizationResult = null;
-            destroyLeafletMap();
-            stops = structuredClone(DEFAULT_STOPS);
-            renderStops();
-        }
-
-        function clearLoadedHistory() {
-            currentScenarioId = null;
-            document.getElementById('scenarioName').value = '';
-            showMessage('success', 'Loaded scenario and history state cleared.');
-        }
-
-        function loadSampleScenario() {
-            applyRoutePayload(SAMPLE_ROUTE_PAYLOAD);
-            currentScenarioId = null;
-            document.getElementById('scenarioName').value = 'Sample route';
-            showMessage('success', 'Sample data loaded into the form.');
-        }
-
-        function loadMapDemo() {
-            applyRoutePayload(SAMPLE_MAP_PAYLOAD);
-            currentScenarioId = null;
-            document.getElementById('scenarioName').value = 'London map demo';
-            showMessage('success', 'London map demo loaded. Click Optimize Route then view the real map!');
-        }
-
-        async function saveScenario() {
-            if (!requireAuth('Saving scenarios')) {
-                return;
-            }
-
-            const name = document.getElementById('scenarioName').value.trim();
-            if (!name) {
-                showMessage('error', 'Enter a scenario name before saving.');
-                return;
-            }
-
-            try {
-                const response = await fetch('/scenarios', {
-                    method: 'POST',
-                    headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
-                    body: JSON.stringify({
-                        name,
-                        route: buildRoutePayload()
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
-                const scenario = await response.json();
-                currentScenarioId = scenario.id;
-                document.getElementById('scenarioName').value = scenario.name;
-                await refreshScenarios();
-                showMessage('success', `Scenario "${scenario.name}" saved.`);
-            } catch (error) {
-                showMessage('error', error.message);
-            }
-        }
-
-        async function loadScenario(id) {
-            if (!requireAuth('Loading scenarios')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/scenarios/${id}`, {
-                    headers: buildAuthHeaders()
-                });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
-                const scenario = await response.json();
-                currentScenarioId = scenario.id;
-                document.getElementById('scenarioName').value = scenario.name;
-                applyRoutePayload(scenario.route);
-                showMessage('success', `Scenario "${scenario.name}" loaded.`);
-            } catch (error) {
-                showMessage('error', error.message);
-            }
-        }
-
-        async function deleteScenario(id) {
-            if (!requireAuth('Deleting scenarios')) {
-                return;
-            }
-
-            if (!window.confirm('Delete this saved scenario?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/scenarios/${id}`, {
-                    method: 'DELETE',
-                    headers: buildAuthHeaders()
-                });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
-                if (currentScenarioId === id) {
-                    currentScenarioId = null;
-                    document.getElementById('scenarioName').value = '';
-                }
-
-                await refreshScenarios();
-                showMessage('success', 'Scenario deleted.');
-            } catch (error) {
-                showMessage('error', error.message);
-            }
-        }
-
-        async function loadHistory(id) {
-            if (!requireAuth('Loading history')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/history/${id}`, {
-                    headers: buildAuthHeaders()
-                });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
-                const entry = await response.json();
-                currentScenarioId = entry.scenario_id || null;
-                document.getElementById('scenarioName').value = entry.scenario_name || '';
-                applyRoutePayload(entry.request);
-                displayResults(entry.response);
-                showMessage('success', 'Optimization run restored from history.');
-            } catch (error) {
-                showMessage('error', error.message);
-            }
-        }
-
-        function showMessage(type, message) {
-            const elem = document.getElementById(type);
-            elem.textContent = message;
-            elem.style.display = 'block';
-            setTimeout(() => elem.style.display = 'none', 6000);
-        }
-
-        function exportLatestResult() {
-            if (!window.latestOptimizationResult) {
-                showMessage('error', 'Run an optimization first so there is something to export.');
-                return;
-            }
-
-            const payload = {
-                exported_at: new Date().toISOString(),
-                scenario_id: currentScenarioId,
-                scenario_name: document.getElementById('scenarioName').value.trim() || null,
-                route_request: buildRoutePayload(),
-                optimization_result: window.latestOptimizationResult
-            };
-
-            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'routemind-result.json';
-            link.click();
-            URL.revokeObjectURL(url);
-        }
-
         async function handleLoginSubmit(event) {
             event.preventDefault();
-
             const identity = document.getElementById('loginIdentity').value.trim();
             const password = document.getElementById('loginPassword').value;
-
             if (!identity || !password) {
                 showAuthMessage('authError', 'Enter your email or username and password.');
                 return;
             }
-
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ identity, password })
                 });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
+                if (!response.ok) throw new Error(await readApiError(response));
                 const result = await response.json();
                 setAuthSession(result.access_token, result.user);
                 document.getElementById('loginForm').reset();
@@ -2766,27 +3494,20 @@
 
         async function handleRegisterSubmit(event) {
             event.preventDefault();
-
             const username = document.getElementById('registerUsername').value.trim();
-            const email = document.getElementById('registerEmail').value.trim();
+            const email    = document.getElementById('registerEmail').value.trim();
             const password = document.getElementById('registerPassword').value;
-
             if (!username || !email || !password) {
                 showAuthMessage('authError', 'Complete username, email, and password to register.');
                 return;
             }
-
             try {
                 const response = await fetch('/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email, password })
                 });
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
-
+                if (!response.ok) throw new Error(await readApiError(response));
                 const result = await response.json();
                 setAuthSession(result.access_token, result.user);
                 document.getElementById('registerForm').reset();
@@ -2803,21 +3524,279 @@
             showMessage('success', 'You have been logged out.');
         }
 
+        /* ============================================================
+         *  SCENARIOS & HISTORY
+         * ============================================================ */
+        function renderScenarioList(items) {
+            const list = document.getElementById('scenarioList');
+            if (!currentUser) {
+                list.innerHTML = '<div class="collection-empty">Sign in to save and reload scenarios.</div>';
+                return;
+            }
+            if (!items.length) {
+                list.innerHTML = '<div class="collection-empty">No saved scenarios yet.</div>';
+                return;
+            }
+            list.innerHTML = items.map(item => `
+                <div class="collection-item">
+                    <div class="collection-item-head">
+                        <div>
+                            <div class="collection-item-title">${escapeHtml(item.name)}</div>
+                            <div class="collection-item-meta">${item.stop_count} stops · Updated ${formatTimestamp(item.updated_at)}</div>
+                        </div>
+                        <div class="collection-item-actions">
+                            <button class="btn btn-secondary btn-small" onclick="loadScenario(${item.id})">Load</button>
+                            <button class="btn btn-danger btn-small" onclick="deleteScenario(${item.id})">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderHistoryList(items) {
+            const list = document.getElementById('historyList');
+            if (!currentUser) {
+                list.innerHTML = '<div class="collection-empty">Sign in to see optimization history.</div>';
+                return;
+            }
+            if (!items.length) {
+                list.innerHTML = '<div class="collection-empty">No optimization runs recorded yet.</div>';
+                return;
+            }
+            list.innerHTML = items.map(item => `
+                <div class="collection-item">
+                    <div class="collection-item-head">
+                        <div>
+                            <div class="collection-item-title">${escapeHtml(item.scenario_name || 'Ad hoc route')} · ${escapeHtml(item.algorithm_used)}</div>
+                            <div class="collection-item-meta">
+                                Cost ${item.optimized_cost.toFixed(2)} · ${item.stop_count} stops · ${item.feasible ? 'Feasible' : 'Infeasible'}<br>
+                                ${formatTimestamp(item.created_at)}
+                            </div>
+                        </div>
+                        <div class="collection-item-actions">
+                            <button class="btn btn-secondary btn-small" onclick="loadHistory(${item.id})">Load</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function refreshScenarios() {
+            if (!currentUser) { renderScenarioList([]); return; }
+            try {
+                const response = await fetch('/scenarios', { headers: buildAuthHeaders() });
+                if (response.status === 401) { clearAuthSession(); throw new Error('Session expired. Please sign in again.'); }
+                if (!response.ok) throw new Error(await readApiError(response));
+                renderScenarioList(await response.json());
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function refreshHistory() {
+            if (!currentUser) { renderHistoryList([]); return; }
+            try {
+                const response = await fetch('/history?limit=12', { headers: buildAuthHeaders() });
+                if (response.status === 401) { clearAuthSession(); throw new Error('Session expired. Please sign in again.'); }
+                if (!response.ok) throw new Error(await readApiError(response));
+                renderHistoryList(await response.json());
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function saveScenario() {
+            if (!requireAuth('Saving scenarios')) return;
+            const name = document.getElementById('scenarioName').value.trim();
+            if (!name) { showMessage('error', 'Enter a scenario name before saving.'); return; }
+            try {
+                const response = await fetch('/scenarios', {
+                    method: 'POST',
+                    headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ name, route: buildRoutePayload() })
+                });
+                if (!response.ok) throw new Error(await readApiError(response));
+                const scenario = await response.json();
+                currentScenarioId = scenario.id;
+                document.getElementById('scenarioName').value = scenario.name;
+                await refreshScenarios();
+                showMessage('success', `Scenario "${scenario.name}" saved.`);
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function loadScenario(id) {
+            if (!requireAuth('Loading scenarios')) return;
+            try {
+                const response = await fetch(`/scenarios/${id}`, { headers: buildAuthHeaders() });
+                if (!response.ok) throw new Error(await readApiError(response));
+                const scenario = await response.json();
+                currentScenarioId = scenario.id;
+                document.getElementById('scenarioName').value = scenario.name;
+                applyRoutePayload(scenario.route);
+                showMessage('success', `Scenario "${scenario.name}" loaded.`);
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function deleteScenario(id) {
+            if (!requireAuth('Deleting scenarios')) return;
+            if (!window.confirm('Delete this saved scenario?')) return;
+            try {
+                const response = await fetch(`/scenarios/${id}`, { method: 'DELETE', headers: buildAuthHeaders() });
+                if (!response.ok) throw new Error(await readApiError(response));
+                if (currentScenarioId === id) {
+                    currentScenarioId = null;
+                    document.getElementById('scenarioName').value = '';
+                }
+                await refreshScenarios();
+                showMessage('success', 'Scenario deleted.');
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        async function loadHistory(id) {
+            if (!requireAuth('Loading history')) return;
+            try {
+                const response = await fetch(`/history/${id}`, { headers: buildAuthHeaders() });
+                if (!response.ok) throw new Error(await readApiError(response));
+                const entry = await response.json();
+                currentScenarioId = entry.scenario_id || null;
+                document.getElementById('scenarioName').value = entry.scenario_name || '';
+                applyRoutePayload(entry.request);
+                displayResults(entry.response);
+                showMessage('success', 'Optimization run restored from history.');
+            } catch (error) {
+                showMessage('error', error.message);
+            }
+        }
+
+        /* ============================================================
+         *  FORM CONTROLS
+         * ============================================================ */
+        function showMessage(type, message) {
+            const elem = document.getElementById(type);
+            elem.textContent = message;
+            elem.style.display = 'block';
+            setTimeout(() => elem.style.display = 'none', 6000);
+        }
+
+        function clearForm() {
+            // Cancel any pending Nominatim requests / debounce timers
+            if (depotNominatimController) { depotNominatimController.abort(); depotNominatimController = null; }
+            clearTimeout(depotDebounceTimer);
+            // Object.keys returns strings; JS object lookup works with both string/number keys
+            for (const key of Object.keys(stopNominatimControllers)) {
+                stopNominatimControllers[key].abort();
+                delete stopNominatimControllers[key];
+            }
+            for (const key of Object.keys(stopDebounceTimers)) {
+                clearTimeout(stopDebounceTimers[key]);
+                delete stopDebounceTimers[key];
+            }
+            // Close any open autocomplete dropdowns
+            document.querySelectorAll('.autocomplete-dropdown.open').forEach(d => d.classList.remove('open'));
+
+            document.getElementById('depotCity').value   = '';
+            document.getElementById('depotStreet').value = '';
+            document.getElementById('depotHouse').value  = '';
+            document.getElementById('depotLat').value    = '';
+            document.getElementById('depotLng').value    = '';
+            document.getElementById('depotX').value      = '';
+            document.getElementById('depotY').value      = '';
+            setDepotStatus(false, 'Not geocoded yet');
+            depotData = { city: '', street: '', houseNumber: '', label: null, lat: null, lng: null, geocoded: false };
+
+            document.getElementById('maxShiftTime').value       = 480;
+            document.getElementById('algorithm').value          = '2opt';
+            document.getElementById('maxIterations').value      = 500;
+            document.getElementById('noImprovementLimit').value = 100;
+            document.getElementById('timeLimit').value          = '';
+            document.getElementById('weightDistance').value     = 1;
+            document.getElementById('weightWait').value         = 0.5;
+            document.getElementById('weightLate').value         = 2;
+            document.getElementById('weightPriority').value     = 1;
+            document.getElementById('weightShift').value        = 4;
+            document.getElementById('scenarioName').value       = '';
+            document.getElementById('travelModeSelect').value   = 'driving';
+            document.getElementById('resultsPanel').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('error').style.display      = 'none';
+            document.getElementById('success').style.display    = 'none';
+            currentScenarioId = null;
+            window.latestOptimizationResult = null;
+            destroyLeafletMap();
+            stops = [];
+            renderStops();
+        }
+
+        function clearLoadedHistory() {
+            currentScenarioId = null;
+            document.getElementById('scenarioName').value = '';
+            showMessage('success', 'Loaded scenario and history state cleared.');
+        }
+
+        function loadMapDemo() {
+            applyRoutePayload(SAMPLE_MAP_PAYLOAD);
+            // Restore country context to UK
+            selectedCountry = { code: 'gb', flag: '🇬🇧', name: 'United Kingdom' };
+            updateCountryBadge();
+            currentScenarioId = null;
+            document.getElementById('scenarioName').value = 'London map demo';
+            showMessage('success', 'London map demo loaded. Click Optimize Route to see the real map!');
+        }
+
+        function exportLatestResult() {
+            if (!window.latestOptimizationResult) {
+                showMessage('error', 'Run an optimization first so there is something to export.');
+                return;
+            }
+            let routeRequest = null;
+            try {
+                routeRequest = buildRoutePayload();
+            } catch (err) {
+                // Export still proceeds; request section will be null (e.g. if some addresses
+                // were not geocoded but the result was loaded from history)
+                const msg = err instanceof Error ? err.message : String(err);
+                console.warn('Could not rebuild route payload for export:', msg);
+                showMessage('error', `Export note: route inputs could not be rebuilt (${msg}). The optimization result is still included.`);
+            }
+            const payload = {
+                exported_at: new Date().toISOString(),
+                scenario_id: currentScenarioId,
+                scenario_name: document.getElementById('scenarioName').value.trim() || null,
+                route_request: routeRequest,
+                optimization_result: window.latestOptimizationResult
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href     = url;
+            link.download = 'routemind-result.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        /* ============================================================
+         *  OPTIMIZATION
+         * ============================================================ */
         async function optimizeRoute() {
             if (stops.length === 0) {
-                showMessage('error', 'Add at least one stop');
+                showMessage('error', 'Add at least one stop before optimizing.');
                 return;
             }
-
-            if (!requireAuth('Route optimization')) {
-                return;
-            }
+            if (!requireAuth('Route optimization')) return;
 
             document.getElementById('loading').style.display = 'block';
 
             try {
-                const payload = buildRoutePayload();
-                const optimizeUrl = currentScenarioId ? `/optimize?scenario_id=${encodeURIComponent(currentScenarioId)}` : '/optimize';
+                const payload     = buildRoutePayload();
+                const optimizeUrl = currentScenarioId
+                    ? `/optimize?scenario_id=${encodeURIComponent(currentScenarioId)}`
+                    : '/optimize';
 
                 const response = await fetch(optimizeUrl, {
                     method: 'POST',
@@ -2829,10 +3808,7 @@
                     clearAuthSession();
                     throw new Error('Session expired. Please sign in again.');
                 }
-
-                if (!response.ok) {
-                    throw new Error(await readApiError(response));
-                }
+                if (!response.ok) throw new Error(await readApiError(response));
 
                 const result = await response.json();
                 displayResults(result);
@@ -2845,25 +3821,28 @@
             }
         }
 
+        /* ============================================================
+         *  RESULTS DISPLAY
+         * ============================================================ */
         function displayResults(result) {
             window.latestOptimizationResult = result;
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('resultsPanel').style.display = 'block';
+            document.getElementById('emptyState').style.display    = 'none';
+            document.getElementById('resultsPanel').style.display  = 'block';
 
             const savingsValue = `${result.improvement_percent.toFixed(1)}%`;
-            const savingsType = result.improvement_percent > 0 ? 'positive' : 'warning';
+            const savingsType  = result.improvement_percent > 0 ? 'positive' : 'warning';
 
             const metrics = [
-                { label: 'Initial Cost', value: result.initial_cost.toFixed(2), type: 'neutral' },
-                { label: 'Optimized Cost', value: result.optimized_cost.toFixed(2), type: 'neutral' },
-                { label: 'Improvement', value: savingsValue, type: savingsType },
-                { label: 'Feasible', value: result.feasible ? 'Yes' : 'No', type: result.feasible ? 'positive' : 'warning' },
-                { label: 'Travel Time', value: result.total_travel_time.toFixed(0) + 'm', type: 'neutral' },
-                { label: 'Wait Time', value: result.total_wait_time.toFixed(0) + 'm', type: 'neutral' },
-                { label: 'Lateness', value: result.total_lateness.toFixed(1) + 'm', type: 'neutral' },
-                { label: 'Shift Overrun', value: result.shift_overrun.toFixed(1) + 'm', type: result.shift_overrun > 0 ? 'warning' : 'neutral' },
-                { label: 'Penalty', value: result.total_penalty.toFixed(2), type: 'neutral' },
-                { label: 'Finish Time', value: result.finish_time.toFixed(1) + 'm', type: 'neutral' }
+                { label: 'Initial Cost',    value: result.initial_cost.toFixed(2),    type: 'neutral' },
+                { label: 'Optimized Cost',  value: result.optimized_cost.toFixed(2),  type: 'neutral' },
+                { label: 'Improvement',     value: savingsValue,                       type: savingsType },
+                { label: 'Feasible',        value: result.feasible ? 'Yes' : 'No',    type: result.feasible ? 'positive' : 'warning' },
+                { label: 'Travel Time',     value: result.total_travel_time.toFixed(0) + 'm', type: 'neutral' },
+                { label: 'Wait Time',       value: result.total_wait_time.toFixed(0)  + 'm', type: 'neutral' },
+                { label: 'Lateness',        value: result.total_lateness.toFixed(1)   + 'm', type: 'neutral' },
+                { label: 'Shift Overrun',   value: result.shift_overrun.toFixed(1)    + 'm', type: result.shift_overrun > 0 ? 'warning' : 'neutral' },
+                { label: 'Penalty',         value: result.total_penalty.toFixed(2),   type: 'neutral' },
+                { label: 'Finish Time',     value: result.finish_time.toFixed(1)      + 'm', type: 'neutral' },
             ];
 
             document.getElementById('metricsGrid').innerHTML = metrics.map(m => `
@@ -2874,10 +3853,10 @@
             `).join('');
 
             const summary = [
-                { label: 'Algorithm', value: result.algorithm_used },
-                { label: 'Iterations', value: result.iterations_used },
-                { label: 'Stopped By', value: result.stopped_by.replaceAll('_', ' ') },
-                { label: 'Priority-Adjusted Lateness', value: result.priority_adjusted_lateness.toFixed(1) }
+                { label: 'Algorithm',                  value: escapeHtml(result.algorithm_used) },
+                { label: 'Iterations',                 value: result.iterations_used },
+                { label: 'Stopped By',                 value: escapeHtml(result.stopped_by.replaceAll('_', ' ')) },
+                { label: 'Priority-Adjusted Lateness', value: result.priority_adjusted_lateness.toFixed(1) },
             ];
 
             document.getElementById('resultSummary').innerHTML = summary.map(item => `
@@ -2887,76 +3866,64 @@
                 </div>
             `).join('');
 
-            document.getElementById('routeBody').innerHTML = result.visits.map(v => `
-                <tr>
-                    <td>${v.stop_id}</td>
+            document.getElementById('routeBody').innerHTML = result.visits.map(v => {
+                const stop = stops.find(s => s.id === v.stop_id);
+                const label = stop ? (stop.label ? stop.label.split(',')[0] : `Stop ${v.stop_id}`) : `Stop ${v.stop_id}`;
+                return `<tr>
+                    <td title="${escapeHtml(stop?.label || '')}">${escapeHtml(label)}</td>
                     <td>${v.arrival.toFixed(1)}</td>
                     <td>${v.start_service.toFixed(1)}</td>
                     <td>${v.finish.toFixed(1)}</td>
                     <td>${v.wait.toFixed(1)}</td>
                     <td>${v.lateness.toFixed(1)}</td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
 
             drawVisualization(result);
         }
 
-        // ---- Visualization dispatcher ----
+        /* ============================================================
+         *  VISUALIZATION DISPATCHER
+         * ============================================================ */
         function drawVisualization(result) {
             if (!result) return;
 
-            const depotLatVal = document.getElementById('depotLat').value;
-            const depotLngVal = document.getElementById('depotLng').value;
-            const depotLat = depotLatVal !== '' ? parseFloat(depotLatVal) : null;
-            const depotLng = depotLngVal !== '' ? parseFloat(depotLngVal) : null;
-            const hasGeoCoords = depotLat !== null && isFinite(depotLat)
-                && depotLng !== null && isFinite(depotLng)
-                && stops.some(s => s.lat !== null && isFinite(s.lat) && s.lng !== null && isFinite(s.lng));
+            const depotLat = parseFloat(document.getElementById('depotLat').value);
+            const depotLng = parseFloat(document.getElementById('depotLng').value);
+            const hasGeoCoords = areValidCoords(depotLat, depotLng)
+                && stops.some(s => areValidCoords(s.lat, s.lng));
 
             if (hasGeoCoords) {
-                // Show Leaflet map, hide canvas
                 document.getElementById('visualization').style.display = 'none';
-                document.getElementById('mapControls').style.display = 'flex';
+                document.getElementById('mapControls').style.display   = 'flex';
                 renderMapVisualization(result);
             } else {
-                // Show canvas fallback, hide map
                 destroyLeafletMap();
                 document.getElementById('visualization').style.display = 'block';
                 drawCanvasVisualization(result);
             }
         }
 
-        // ---- Leaflet map functions ----
+        /* ============================================================
+         *  LEAFLET MAP
+         * ============================================================ */
         function destroyLeafletMap() {
-            if (osrmAbortController) {
-                osrmAbortController.abort();
-                osrmAbortController = null;
-            }
+            if (osrmAbortController) { osrmAbortController.abort(); osrmAbortController = null; }
             if (leafletMap) {
                 leafletMap.remove();
-                leafletMap = null;
-                currentTileLayer = null;
-                currentLabelsLayer = null;
-                currentRouteLayer = null;
-                currentMarkerGroup = null;
+                leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
             }
-            document.getElementById('routeMap').style.display = 'none';
-            document.getElementById('mapControls').style.display = 'none';
-            document.getElementById('mapError').style.display = 'none';
+            document.getElementById('routeMap').style.display      = 'none';
+            document.getElementById('mapControls').style.display   = 'none';
+            document.getElementById('mapError').style.display      = 'none';
         }
 
         function initLeafletMap(centerLat, centerLng, zoom) {
             const mapEl = document.getElementById('routeMap');
-
             if (leafletMap) {
                 leafletMap.remove();
-                leafletMap = null;
-                currentTileLayer = null;
-                currentLabelsLayer = null;
-                currentRouteLayer = null;
-                currentMarkerGroup = null;
+                leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
             }
-
             mapEl.style.display = 'block';
             leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
             updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
@@ -2964,7 +3931,7 @@
 
         function updateTileLayer(style) {
             if (!leafletMap) return;
-            if (currentTileLayer) { leafletMap.removeLayer(currentTileLayer); currentTileLayer = null; }
+            if (currentTileLayer)   { leafletMap.removeLayer(currentTileLayer);   currentTileLayer   = null; }
             if (currentLabelsLayer) { leafletMap.removeLayer(currentLabelsLayer); currentLabelsLayer = null; }
 
             const cfg = TILE_CONFIGS[style] || TILE_CONFIGS.streets;
@@ -2983,44 +3950,38 @@
             }
         }
 
-        // AbortController for in-flight OSRM requests – cancels stale requests on rapid mode change.
-        let osrmAbortController = null;
-
         async function fetchOSRMRoute(waypoints, mode, signal) {
             const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
-            const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
-            const resp = await fetch(`${service}/${coords}?overview=full&geometries=geojson`, { signal });
+            const coords  = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
+            const resp    = await fetch(`${service}/${coords}?overview=full&geometries=geojson`, { signal });
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
-            // OSRM returns [lng, lat] pairs – convert to Leaflet [lat, lng]
+            if (!data.routes || data.routes.length === 0) throw new Error('OSRM routing returned no valid routes — the waypoints may be too far apart or the selected travel mode may not support this route');
             return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
         }
 
         async function renderMapVisualization(result) {
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
-            // isFinite handles NaN and Infinity; also handles the falsy-zero edge case (!0 === true)
-            if (!isFinite(depotLat) || !isFinite(depotLng)) return;
+            if (!areValidCoords(depotLat, depotLng)) return;
 
             const orderedStops = result.optimized_route_order
                 .map(id => stops.find(s => s.id === id))
-                .filter(s => s && s.lat !== null && isFinite(s.lat) && s.lng !== null && isFinite(s.lng));
+                .filter(s => s && areValidCoords(s.lat, s.lng));
 
-            // Determine map center from all available geographic points
             const geoPoints = orderedStops.length > 0
                 ? [{ lat: depotLat, lng: depotLng }, ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng }))]
                 : [{ lat: depotLat, lng: depotLng }];
 
-            const allLats = geoPoints.map(p => p.lat);
-            const allLngs = geoPoints.map(p => p.lng);
+            const allLats  = geoPoints.map(p => p.lat);
+            const allLngs  = geoPoints.map(p => p.lng);
             const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
             const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
 
             initLeafletMap(centerLat, centerLng, orderedStops.length === 0 ? 14 : 13);
 
-            // Clear previous route and markers
-            if (currentRouteLayer) { leafletMap.removeLayer(currentRouteLayer); currentRouteLayer = null; }
+            if (currentRouteLayer)  { leafletMap.removeLayer(currentRouteLayer);  currentRouteLayer  = null; }
             if (currentMarkerGroup) { leafletMap.removeLayer(currentMarkerGroup); currentMarkerGroup = null; }
 
             const makeIcon = (label, bg) => L.divIcon({
@@ -3034,21 +3995,19 @@
             });
 
             currentMarkerGroup = L.layerGroup().addTo(leafletMap);
-
+            const depotLabel = depotData.label || 'Depot';
             L.marker([depotLat, depotLng], { icon: makeIcon('D', '#FF8A34') })
-                .bindTooltip('Depot', { permanent: false })
+                .bindTooltip(depotLabel, { permanent: false })
                 .addTo(currentMarkerGroup);
 
-            // If no stops have geographic coordinates, just show the depot and return.
             const mapError = document.getElementById('mapError');
             if (orderedStops.length === 0) {
-                mapError.textContent = '⚠️ No stops have geographic coordinates. Add Lat/Lng to stops to see the full route.';
+                mapError.textContent = '⚠️ No stops have geographic coordinates.';
                 mapError.style.display = 'block';
                 leafletMap.setView([depotLat, depotLng], 14);
                 return;
             }
 
-            // Build waypoints: depot → stops in order → depot (round-trip)
             const waypointsForRouting = [
                 { lat: depotLat, lng: depotLng },
                 ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng })),
@@ -3057,10 +4016,7 @@
 
             const mode = document.getElementById('travelModeSelect').value || 'driving';
 
-            // Cancel any in-flight OSRM request before starting a new one.
-            if (osrmAbortController) {
-                osrmAbortController.abort();
-            }
+            if (osrmAbortController) osrmAbortController.abort();
             osrmAbortController = new AbortController();
             const { signal } = osrmAbortController;
 
@@ -3069,30 +4025,24 @@
                 routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode, signal);
                 mapError.style.display = 'none';
             } catch (err) {
-                // Ignore cancellations – a newer request is already in flight.
                 if (err.name === 'AbortError') return;
-                // Graceful fallback: draw straight lines between waypoints
                 routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
                 mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
                 mapError.style.display = 'block';
             }
 
-            // Draw route polyline (check map still exists – might have been destroyed by concurrent call)
             if (!leafletMap) return;
             currentRouteLayer = L.polyline(routeLatLngs, {
-                color: '#14B8E6',
-                weight: 4,
-                opacity: 0.85,
-                lineJoin: 'round'
+                color: '#14B8E6', weight: 4, opacity: 0.85, lineJoin: 'round'
             }).addTo(leafletMap);
 
             orderedStops.forEach((stop, idx) => {
+                const tooltip = stop.label ? stop.label.split(',')[0] : `Stop ${stop.id}`;
                 L.marker([stop.lat, stop.lng], { icon: makeIcon(idx + 1, '#14C8B0') })
-                    .bindTooltip(`Stop ${stop.id} · Order ${idx + 1}`, { permanent: false })
+                    .bindTooltip(`${tooltip} · Order ${idx + 1}`, { permanent: false })
                     .addTo(currentMarkerGroup);
             });
 
-            // Fit viewport to route bounds
             leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
         }
 
@@ -3106,188 +4056,142 @@
             }
         }
 
-        // ---- Canvas fallback visualization ----
+        /* ============================================================
+         *  CANVAS FALLBACK (for loaded legacy scenarios without geo)
+         * ============================================================ */
         function drawCanvasVisualization(result) {
-            if (!result) {
-                return;
-            }
+            if (!result) return;
 
             const canvas = document.createElement('canvas');
-            canvas.width = 520;
+            canvas.width  = 520;
             canvas.height = 360;
-            const ctx = canvas.getContext('2d');
+            const ctx    = canvas.getContext('2d');
             const isDark = document.body.classList.contains('dark-mode');
 
-            const depot = {
-                x: parseFloat(document.getElementById('depotX').value),
-                y: parseFloat(document.getElementById('depotY').value)
-            };
+            const depotX = parseFloat(document.getElementById('depotX').value) || 0;
+            const depotY = parseFloat(document.getElementById('depotY').value) || 0;
+            const depot  = { x: depotX, y: depotY };
 
             const allPoints = [depot, ...stops];
-            const maxX = Math.max(...allPoints.map(p => p.x)) || 20;
-            const maxY = Math.max(...allPoints.map(p => p.y)) || 20;
+            const maxX = Math.max(...allPoints.map(p => p.x || 0)) || 20;
+            const maxY = Math.max(...allPoints.map(p => p.y || 0)) || 20;
             const padding = 50;
-            const scale = Math.min((canvas.width - 2 * padding) / maxX, (canvas.height - 2 * padding) / maxY);
+            const scale   = Math.min(
+                (canvas.width  - 2 * padding) / maxX,
+                (canvas.height - 2 * padding) / maxY
+            );
 
-            const toCanvas = (point) => ({
-                x: padding + point.x * scale,
-                y: padding + point.y * scale
+            const toCanvas = point => ({
+                x: padding + (point.x || 0) * scale,
+                y: padding + (point.y || 0) * scale
             });
 
             const palette = isDark ? {
-                canvasBackground: '#0F172A',
-                grid: '#22304a',
-                border: '#475569',
-                route: '#38BDF8',
-                depotGlow: 'rgba(249, 115, 22, 0.28)',
-                shadow: 'rgba(15, 23, 42, 0.45)',
-                stopColor: '#2DD4BF'
+                canvasBackground: '#0F172A', grid: '#22304a', border: '#475569',
+                route: '#38BDF8', depotGlow: 'rgba(249,115,22,0.28)',
+                shadow: 'rgba(15,23,42,0.45)', stopColor: '#2DD4BF'
             } : {
-                canvasBackground: '#F7F9FC',
-                grid: '#e0e7f1',
-                border: '#DDE5EC',
-                route: '#14B8E6',
-                depotGlow: 'rgba(249, 115, 22, 0.2)',
-                shadow: 'rgba(0, 0, 0, 0.08)',
-                stopColor: '#14C8B0'
+                canvasBackground: '#F7F9FC', grid: '#e0e7f1', border: '#DDE5EC',
+                route: '#14B8E6', depotGlow: 'rgba(249,115,22,0.2)',
+                shadow: 'rgba(0,0,0,0.08)', stopColor: '#14C8B0'
             };
 
-            // Draw subtle page-like background
             ctx.fillStyle = palette.canvasBackground;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw grid with better visibility
             ctx.strokeStyle = palette.grid;
-            ctx.lineWidth = 0.8;
-            const gridSpacing = 5;
-            
-            // Vertical grid lines
-            for (let i = 0; i <= maxX; i += gridSpacing) {
+            ctx.lineWidth   = 0.8;
+            for (let i = 0; i <= maxX; i += 5) {
                 const p = toCanvas({ x: i, y: 0 });
-                ctx.beginPath();
-                ctx.moveTo(p.x, padding);
-                ctx.lineTo(p.x, canvas.height - padding);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(p.x, padding); ctx.lineTo(p.x, canvas.height - padding); ctx.stroke();
             }
-            
-            // Horizontal grid lines
-            for (let i = 0; i <= maxY; i += gridSpacing) {
+            for (let i = 0; i <= maxY; i += 5) {
                 const p = toCanvas({ x: 0, y: i });
-                ctx.beginPath();
-                ctx.moveTo(padding, p.y);
-                ctx.lineTo(canvas.width - padding, p.y);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(padding, p.y); ctx.lineTo(canvas.width - padding, p.y); ctx.stroke();
             }
 
-            // Draw plot area border with subtle shadow effect
             ctx.strokeStyle = palette.border;
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth   = 1.5;
             ctx.strokeRect(padding - 1, padding - 1, canvas.width - 2 * padding + 2, canvas.height - 2 * padding + 2);
 
-            // Draw route with better styling
-            ctx.strokeStyle = palette.route;
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.globalAlpha = 0.85;
-            
+            ctx.strokeStyle  = palette.route;
+            ctx.lineWidth    = 3;
+            ctx.lineCap      = 'round';
+            ctx.lineJoin     = 'round';
+            ctx.globalAlpha  = 0.85;
             ctx.beginPath();
-            const depotCanvas = toCanvas(depot);
-            ctx.moveTo(depotCanvas.x, depotCanvas.y);
-
+            const dc = toCanvas(depot);
+            ctx.moveTo(dc.x, dc.y);
             result.optimized_route_order.forEach(id => {
                 const stop = stops.find(s => s.id === id);
-                if (stop) {
-                    const point = toCanvas(stop);
-                    ctx.lineTo(point.x, point.y);
-                }
+                if (stop) { const pt = toCanvas(stop); ctx.lineTo(pt.x, pt.y); }
             });
-            ctx.lineTo(depotCanvas.x, depotCanvas.y);
+            ctx.lineTo(dc.x, dc.y);
             ctx.stroke();
             ctx.globalAlpha = 1;
 
-            // Draw depot with enhanced styling
-            ctx.fillStyle = '#FF8A34';
-            ctx.beginPath();
-            ctx.arc(depotCanvas.x, depotCanvas.y, 11, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-            
-            // Depot glow effect
-            ctx.strokeStyle = palette.depotGlow;
-            ctx.lineWidth = 4;
-            ctx.stroke();
+            ctx.fillStyle   = '#FF8A34';
+            ctx.beginPath(); ctx.arc(dc.x, dc.y, 11, 0, 2 * Math.PI); ctx.fill();
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.strokeStyle = palette.depotGlow; ctx.lineWidth = 4; ctx.stroke();
 
-            // Draw stops with enhanced styling
-            const colors = [palette.stopColor, palette.stopColor, palette.stopColor, palette.stopColor];
             result.optimized_route_order.forEach((id, idx) => {
                 const stop = stops.find(s => s.id === id);
-                if (stop) {
-                    const point = toCanvas(stop);
-                    
-                    // Draw shadow
-                    ctx.fillStyle = palette.shadow;
-                    ctx.beginPath();
-                    ctx.arc(point.x + 1, point.y + 1, 8.5, 0, 2 * Math.PI);
-                    ctx.fill();
-                    
-                    // Draw stop circle
-                    ctx.fillStyle = colors[idx % colors.length];
-                    ctx.beginPath();
-                    ctx.arc(point.x, point.y, 8, 0, 2 * Math.PI);
-                    ctx.fill();
-                    
-                    // Draw border
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    // Draw number
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(idx + 1, point.x, point.y);
-                }
+                if (!stop) return;
+                const pt = toCanvas(stop);
+                ctx.fillStyle = palette.shadow;
+                ctx.beginPath(); ctx.arc(pt.x + 1, pt.y + 1, 8.5, 0, 2 * Math.PI); ctx.fill();
+                ctx.fillStyle = palette.stopColor;
+                ctx.beginPath(); ctx.arc(pt.x, pt.y, 8, 0, 2 * Math.PI); ctx.fill();
+                ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(idx + 1, pt.x, pt.y);
             });
 
             document.getElementById('visualization').innerHTML = '';
             document.getElementById('visualization').appendChild(canvas);
 
-            // Add enhanced legend
             const legend = document.createElement('div');
             legend.className = 'legend';
             legend.innerHTML = `
                 <div class="legend-item">
-                    <div class="legend-dot" style="background: #FF8A34; box-shadow: 0 2px 4px rgba(255, 138, 52, 0.24);"></div>
+                    <div class="legend-dot" style="background:#FF8A34;box-shadow:0 2px 4px rgba(255,138,52,.24);"></div>
                     <span>Depot</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-dot" style="background: #14C8B0; box-shadow: 0 2px 4px rgba(20, 200, 176, 0.2);"></div>
+                    <div class="legend-dot" style="background:#14C8B0;box-shadow:0 2px 4px rgba(20,200,176,.2);"></div>
                     <span>Stops</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-dot" style="background: #14B8E6; width: 12px; height: 2px; border-radius: 1px;"></div>
+                    <div class="legend-dot" style="background:#14B8E6;width:12px;height:2px;border-radius:1px;"></div>
                     <span>Route</span>
                 </div>
             `;
             document.getElementById('visualization').appendChild(legend);
         }
 
-        document.addEventListener('keydown', (event) => {
+        /* ============================================================
+         *  KEYBOARD & FORM EVENTS
+         * ============================================================ */
+        document.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 closeAuthModal();
+                document.getElementById('countryPickerOverlay').classList.add('hidden');
             }
         });
 
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
         document.getElementById('registerForm').addEventListener('submit', handleRegisterSubmit);
 
+        /* ============================================================
+         *  INITIALISATION
+         * ============================================================ */
         initializeTheme();
         updateAuthUI();
         initializeAuth();
+        initializeCountryPicker();
         renderStops();
     </script>
 </body>

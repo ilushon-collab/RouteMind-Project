@@ -15,6 +15,11 @@ class Stop(BaseModel):
     y: float
     lat: Optional[float] = None
     lng: Optional[float] = None
+    label: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    street: Optional[str] = None
+    house_number: Optional[str] = None
     window_start: float
     window_end: float
     service_time: float
@@ -40,6 +45,11 @@ class Depot(BaseModel):
     y: float
     lat: Optional[float] = None
     lng: Optional[float] = None
+    label: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    street: Optional[str] = None
+    house_number: Optional[str] = None
 
 
 class Weights(BaseModel):
