@@ -21,7 +21,7 @@ def greedy_initial_route(
     distance_matrix = distance_matrix or build_distance_matrix(depot, stops)
     unvisited = stops[:]
     route: list[Stop] = []
-    current = depot
+    current: Depot | Stop = depot
     current_time = 0.0
 
     while unvisited:
@@ -104,7 +104,7 @@ def local_search_swap(
     weights: Weights,
     max_iterations: int = 1000,
     no_improvement_limit: int = 100,
-    time_limit: float = None,
+    time_limit: float | None = None,
     distance_matrix: DistanceMatrix | None = None,
 ) -> tuple[list[Stop], dict, dict]:
     if len(route) < 2:
@@ -124,7 +124,7 @@ def local_search_swap(
     stopped_by = "completed"
 
     while iterations < max_iterations and no_improvement_count < no_improvement_limit:
-        if time_limit and (time.time() - start_time) > time_limit:
+        if time_limit is not None and (time.time() - start_time) > time_limit:
             stopped_by = "time_limit"
             break
 
@@ -178,7 +178,7 @@ def local_search_relocate(
     weights: Weights,
     max_iterations: int = 1000,
     no_improvement_limit: int = 100,
-    time_limit: float = None,
+    time_limit: float | None = None,
     distance_matrix: DistanceMatrix | None = None,
 ) -> tuple[list[Stop], dict, dict]:
     if len(route) < 2:
@@ -198,7 +198,7 @@ def local_search_relocate(
     stopped_by = "completed"
 
     while iterations < max_iterations and no_improvement_count < no_improvement_limit:
-        if time_limit and (time.time() - start_time) > time_limit:
+        if time_limit is not None and (time.time() - start_time) > time_limit:
             stopped_by = "time_limit"
             break
 
@@ -255,7 +255,7 @@ def improve_route_2opt(
     weights: Weights,
     max_iterations: int = 1000,
     no_improvement_limit: int = 100,
-    time_limit: float = None,
+    time_limit: float | None = None,
     distance_matrix: DistanceMatrix | None = None,
 ) -> tuple[list[Stop], dict, dict]:
     if len(route) < 2:
@@ -275,7 +275,7 @@ def improve_route_2opt(
     stopped_by = "completed"
 
     while iterations < max_iterations and no_improvement_count < no_improvement_limit:
-        if time_limit and (time.time() - start_time) > time_limit:
+        if time_limit is not None and (time.time() - start_time) > time_limit:
             stopped_by = "time_limit"
             break
 

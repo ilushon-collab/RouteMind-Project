@@ -83,9 +83,12 @@ def save_scenario(user_id: int, name: str, route: RouteRequest) -> ScenarioDetai
                 (user_id, normalized_name, payload_json, stop_count, timestamp, timestamp),
             )
             connection.commit()
+            assert cursor.lastrowid is not None
             scenario_id = int(cursor.lastrowid)
 
-    return get_scenario(user_id, scenario_id)
+    result = get_scenario(user_id, scenario_id)
+    assert result is not None
+    return result
 
 
 def list_scenarios(user_id: int) -> list[ScenarioSummary]:
@@ -189,6 +192,7 @@ def record_optimization_run(
         )
         connection.commit()
 
+    assert cursor.lastrowid is not None
     return int(cursor.lastrowid)
 
 
