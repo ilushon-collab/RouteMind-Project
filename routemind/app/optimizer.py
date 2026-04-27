@@ -124,7 +124,7 @@ def local_search_swap(
     stopped_by = "completed"
 
     while iterations < max_iterations and no_improvement_count < no_improvement_limit:
-        if time_limit and (time.time() - start_time) > time_limit:
+        if time_limit is not None and (time.time() - start_time) > time_limit:
             stopped_by = "time_limit"
             break
 
@@ -198,7 +198,7 @@ def local_search_relocate(
     stopped_by = "completed"
 
     while iterations < max_iterations and no_improvement_count < no_improvement_limit:
-        if time_limit and (time.time() - start_time) > time_limit:
+        if time_limit is not None and (time.time() - start_time) > time_limit:
             stopped_by = "time_limit"
             break
 
@@ -275,7 +275,7 @@ def improve_route_2opt(
     stopped_by = "completed"
 
     while iterations < max_iterations and no_improvement_count < no_improvement_limit:
-        if time_limit and (time.time() - start_time) > time_limit:
+        if time_limit is not None and (time.time() - start_time) > time_limit:
             stopped_by = "time_limit"
             break
 

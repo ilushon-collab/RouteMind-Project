@@ -454,7 +454,7 @@
 
         .stop-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             gap: 6px;
         }
 
@@ -2252,22 +2252,24 @@
 
         function buildRoutePayload() {
             const timeLimitValue = document.getElementById('timeLimit').value;
-            const depotLat = document.getElementById('depotLat').value;
-            const depotLng = document.getElementById('depotLng').value;
+            const depotLatRaw = document.getElementById('depotLat').value;
+            const depotLngRaw = document.getElementById('depotLng').value;
+            const depotLatParsed = depotLatRaw !== '' ? parseFloat(depotLatRaw) : null;
+            const depotLngParsed = depotLngRaw !== '' ? parseFloat(depotLngRaw) : null;
 
             return {
                 depot: {
                     x: parseFloat(document.getElementById('depotX').value),
                     y: parseFloat(document.getElementById('depotY').value),
-                    lat: depotLat !== '' ? parseFloat(depotLat) : null,
-                    lng: depotLng !== '' ? parseFloat(depotLng) : null
+                    lat: (depotLatParsed !== null && isFinite(depotLatParsed)) ? depotLatParsed : null,
+                    lng: (depotLngParsed !== null && isFinite(depotLngParsed)) ? depotLngParsed : null
                 },
                 stops: stops.map(s => ({
                     id: s.id,
                     x: s.x,
                     y: s.y,
-                    lat: s.lat ?? null,
-                    lng: s.lng ?? null,
+                    lat: (s.lat !== null && isFinite(s.lat)) ? s.lat : null,
+                    lng: (s.lng !== null && isFinite(s.lng)) ? s.lng : null,
                     window_start: s.windowStart,
                     window_end: s.windowEnd,
                     service_time: s.serviceTime,
@@ -2291,6 +2293,12 @@
         }
 
         function applyRoutePayload(payload) {
+            // Tear down any active map so the new coords take effect cleanly.
+            destroyLeafletMap();
+            document.getElementById('visualization').style.display = 'block';
+            document.getElementById('visualization').innerHTML = '';
+            document.getElementById('mapError').style.display = 'none';
+
             document.getElementById('depotX').value = payload.depot.x;
             document.getElementById('depotY').value = payload.depot.y;
             document.getElementById('depotLat').value = payload.depot.lat ?? '';
@@ -2474,12 +2482,12 @@
                         <div class="stop-grid-col">
                             <label>Lat <span class="field-optional">map</span></label>
                             <input type="number" value="${stop.lat ?? ''}" placeholder="e.g. 51.50" step="0.0001"
-                                onchange="stops[${idx}].lat = this.value !== '' ? parseFloat(this.value) : null">
+                                onchange="const v=parseFloat(this.value);stops[${idx}].lat=(this.value!==''&&isFinite(v))?v:null;">
                         </div>
                         <div class="stop-grid-col">
                             <label>Lng <span class="field-optional">map</span></label>
                             <input type="number" value="${stop.lng ?? ''}" placeholder="e.g. -0.12" step="0.0001"
-                                onchange="stops[${idx}].lng = this.value !== '' ? parseFloat(this.value) : null">
+                                onchange="const v=parseFloat(this.value);stops[${idx}].lng=(this.value!==''&&isFinite(v))?v:null;">
                         </div>
                         <div class="stop-grid-col">
                             <label>W. Start</label>
@@ -2896,8 +2904,9 @@
             const depotLngVal = document.getElementById('depotLng').value;
             const depotLat = depotLatVal !== '' ? parseFloat(depotLatVal) : null;
             const depotLng = depotLngVal !== '' ? parseFloat(depotLngVal) : null;
-            const hasGeoCoords = depotLat !== null && depotLng !== null
-                && stops.some(s => s.lat !== null && s.lng !== null);
+            const hasGeoCoords = depotLat !== null && isFinite(depotLat)
+                && depotLng !== null && isFinite(depotLng)
+                && stops.some(s => s.lat !== null && isFinite(s.lat) && s.lng !== null && isFinite(s.lng));
 
             if (hasGeoCoords) {
                 // Show Leaflet map, hide canvas
@@ -2914,6 +2923,10 @@
 
         // ---- Leaflet map functions ----
         function destroyLeafletMap() {
+            if (osrmAbortController) {
+                osrmAbortController.abort();
+                osrmAbortController = null;
+            }
             if (leafletMap) {
                 leafletMap.remove();
                 leafletMap = null;
@@ -2965,10 +2978,13 @@
             }
         }
 
-        async function fetchOSRMRoute(waypoints, mode) {
+        // AbortController for in-flight OSRM requests – cancels stale requests on rapid mode change.
+        let osrmAbortController = null;
+
+        async function fetchOSRMRoute(waypoints, mode, signal) {
             const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
             const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
-            const resp = await fetch(`${service}/${coords}?overview=full&geometries=geojson`);
+            const resp = await fetch(`${service}/${coords}?overview=full&geometries=geojson`, { signal });
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
@@ -2979,57 +2995,28 @@
         async function renderMapVisualization(result) {
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
-            if (!depotLat || !depotLng) return;
+            // isFinite handles NaN and Infinity; also handles the falsy-zero edge case (!0 === true)
+            if (!isFinite(depotLat) || !isFinite(depotLng)) return;
 
             const orderedStops = result.optimized_route_order
                 .map(id => stops.find(s => s.id === id))
-                .filter(s => s && s.lat !== null && s.lng !== null);
+                .filter(s => s && s.lat !== null && isFinite(s.lat) && s.lng !== null && isFinite(s.lng));
 
-            if (orderedStops.length === 0) return;
+            // Determine map center from all available geographic points
+            const geoPoints = orderedStops.length > 0
+                ? [{ lat: depotLat, lng: depotLng }, ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng }))]
+                : [{ lat: depotLat, lng: depotLng }];
 
-            // Build waypoints: depot → stops in order → depot (round-trip)
-            const waypointsForRouting = [
-                { lat: depotLat, lng: depotLng },
-                ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng })),
-                { lat: depotLat, lng: depotLng }
-            ];
-
-            // Determine map center
-            const allLats = waypointsForRouting.map(p => p.lat);
-            const allLngs = waypointsForRouting.map(p => p.lng);
+            const allLats = geoPoints.map(p => p.lat);
+            const allLngs = geoPoints.map(p => p.lng);
             const centerLat = (Math.min(...allLats) + Math.max(...allLats)) / 2;
             const centerLng = (Math.min(...allLngs) + Math.max(...allLngs)) / 2;
 
-            initLeafletMap(centerLat, centerLng, 13);
+            initLeafletMap(centerLat, centerLng, orderedStops.length === 0 ? 14 : 13);
 
             // Clear previous route and markers
             if (currentRouteLayer) { leafletMap.removeLayer(currentRouteLayer); currentRouteLayer = null; }
             if (currentMarkerGroup) { leafletMap.removeLayer(currentMarkerGroup); currentMarkerGroup = null; }
-
-            const mode = document.getElementById('travelModeSelect').value || 'driving';
-            const mapError = document.getElementById('mapError');
-            let routeLatLngs;
-
-            try {
-                routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode);
-                mapError.style.display = 'none';
-            } catch (_err) {
-                // Graceful fallback: draw straight lines between waypoints
-                routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
-                mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
-                mapError.style.display = 'block';
-            }
-
-            // Draw route polyline
-            currentRouteLayer = L.polyline(routeLatLngs, {
-                color: '#14B8E6',
-                weight: 4,
-                opacity: 0.85,
-                lineJoin: 'round'
-            }).addTo(leafletMap);
-
-            // Add markers
-            currentMarkerGroup = L.layerGroup().addTo(leafletMap);
 
             const makeIcon = (label, bg) => L.divIcon({
                 html: `<div style="background:${bg};color:#fff;font-weight:700;font-size:12px;`
@@ -3041,9 +3028,58 @@
                 iconAnchor: [13, 13]
             });
 
+            currentMarkerGroup = L.layerGroup().addTo(leafletMap);
+
             L.marker([depotLat, depotLng], { icon: makeIcon('D', '#FF8A34') })
                 .bindTooltip('Depot', { permanent: false })
                 .addTo(currentMarkerGroup);
+
+            // If no stops have geographic coordinates, just show the depot and return.
+            const mapError = document.getElementById('mapError');
+            if (orderedStops.length === 0) {
+                mapError.textContent = '⚠️ No stops have geographic coordinates. Add Lat/Lng to stops to see the full route.';
+                mapError.style.display = 'block';
+                leafletMap.setView([depotLat, depotLng], 14);
+                return;
+            }
+
+            // Build waypoints: depot → stops in order → depot (round-trip)
+            const waypointsForRouting = [
+                { lat: depotLat, lng: depotLng },
+                ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng })),
+                { lat: depotLat, lng: depotLng }
+            ];
+
+            const mode = document.getElementById('travelModeSelect').value || 'driving';
+
+            // Cancel any in-flight OSRM request before starting a new one.
+            if (osrmAbortController) {
+                osrmAbortController.abort();
+            }
+            osrmAbortController = new AbortController();
+            const { signal } = osrmAbortController;
+
+            let routeLatLngs;
+            try {
+                routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode, signal);
+                mapError.style.display = 'none';
+            } catch (err) {
+                // Ignore cancellations – a newer request is already in flight.
+                if (err.name === 'AbortError') return;
+                // Graceful fallback: draw straight lines between waypoints
+                routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
+                mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
+                mapError.style.display = 'block';
+            }
+
+            // Draw route polyline (check map still exists – might have been destroyed by concurrent call)
+            if (!leafletMap) return;
+            currentRouteLayer = L.polyline(routeLatLngs, {
+                color: '#14B8E6',
+                weight: 4,
+                opacity: 0.85,
+                lineJoin: 'round'
+            }).addTo(leafletMap);
 
             orderedStops.forEach((stop, idx) => {
                 L.marker([stop.lat, stop.lng], { icon: makeIcon(idx + 1, '#14C8B0') })
