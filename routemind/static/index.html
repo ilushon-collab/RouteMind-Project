@@ -2259,8 +2259,7 @@
                     </div>
                     <div class="stacked-actions">
                         <div class="result-toolbar">
-                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Sample Data</button>
-                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Map Demo</button>
+                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load London Demo</button>
                             <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
                         </div>
                     </div>
@@ -2712,7 +2711,9 @@
                 try {
                     selectedCountry = JSON.parse(stored);
                     updateCountryBadge();
-                } catch (_) { /* ignore corrupt data */ }
+                } catch (_) {
+                    // Stored value is not valid JSON; show picker on next tick
+                }
             } else {
                 // First visit — show the picker
                 renderCountryGrid();
@@ -2789,7 +2790,7 @@
             try {
                 const results = await nominatimSearch(query, selectedCountry.code);
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No results — try a different spelling</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -2834,8 +2835,7 @@
             const house  = document.getElementById('depotHouse').value.trim();
 
             if (!city && !street) {
-                setDepotStatus(false, 'Enter a city and/or street first');
-                return;
+                setDepotStatus(false, 'Enter a city and/or street first');                return;
             }
 
             setDepotStatus(false, 'Geocoding…');
@@ -2845,7 +2845,7 @@
                 const results = await nominatimSearch(query, selectedCountry.code, 1);
 
                 if (!results.length) {
-                    setDepotStatus(false, '⚠️ Address not found — try different spelling');
+                    setDepotStatus(false, '⚠️ Address not found - try different spelling');
                     return;
                 }
 
@@ -2925,7 +2925,7 @@
             try {
                 const results = await nominatimSearch(query, selectedCountry.code);
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No results — try a different spelling</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -2987,7 +2987,7 @@
                 const results = await nominatimSearch(query, selectedCountry.code, 1);
 
                 if (!results.length) {
-                    setStopStatus(idx, false, '⚠️ Address not found — try different spelling');
+                    setStopStatus(idx, false, '⚠️ Address not found - try different spelling');
                     return;
                 }
 
@@ -3601,11 +3601,13 @@
                 showMessage('error', 'Run an optimization first so there is something to export.');
                 return;
             }
-            let routeRequest;
+            let routeRequest = null;
             try {
                 routeRequest = buildRoutePayload();
-            } catch (_) {
-                routeRequest = null;
+            } catch (err) {
+                // Export still proceeds; request section will be null (e.g. if some addresses
+                // were not geocoded but the result was loaded from history)
+                console.warn('Could not rebuild route payload for export:', err.message);
             }
             const payload = {
                 exported_at: new Date().toISOString(),
