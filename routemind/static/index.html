@@ -2491,6 +2491,12 @@
         let depotDebounceTimer = null;
         const stopDebounceTimers = {};
 
+        // AbortControllers for in-flight Nominatim requests (autocomplete + manual geocode)
+        let depotNominatimController = null;
+        const stopNominatimControllers = {};
+        let depotGeocodeInProgress = false;
+        const stopGeocodeInProgress = {};
+
         const TILE_CONFIGS = {
             streets: {
                 url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -2708,23 +2714,34 @@
         function initializeCountryPicker() {
             const stored = localStorage.getItem(COUNTRY_STORAGE_KEY);
             if (stored) {
+                let parsed = null;
                 try {
-                    selectedCountry = JSON.parse(stored);
-                    updateCountryBadge();
+                    parsed = JSON.parse(stored);
                 } catch (_) {
-                    // Stored value is not valid JSON; show picker on next tick
+                    // Stored value is not valid JSON; clear and show picker
                 }
-            } else {
-                // First visit — show the picker
-                renderCountryGrid();
-                document.getElementById('countryPickerOverlay').classList.remove('hidden');
+                // Validate required fields so partial/corrupt objects don't propagate
+                const isValid = parsed
+                    && typeof parsed.code === 'string' && parsed.code.length >= 2
+                    && typeof parsed.flag === 'string' && parsed.flag.length > 0
+                    && typeof parsed.name === 'string' && parsed.name.length > 0;
+                if (isValid) {
+                    selectedCountry = parsed;
+                    updateCountryBadge();
+                    return;
+                }
+                // Invalid stored data — clear it and fall through to show picker
+                localStorage.removeItem(COUNTRY_STORAGE_KEY);
             }
+            // First visit or cleared invalid data — show the picker
+            renderCountryGrid();
+            document.getElementById('countryPickerOverlay').classList.remove('hidden');
         }
 
         /* ============================================================
          *  NOMINATIM GEOCODING / AUTOCOMPLETE
          * ============================================================ */
-        async function nominatimSearch(query, countryCode, limit = 6) {
+        async function nominatimSearch(query, countryCode, limit = 6, signal = undefined) {
             const params = new URLSearchParams({
                 format: 'json',
                 q: query,
@@ -2733,9 +2750,11 @@
                 'accept-language': 'en'
             });
             if (countryCode) params.set('countrycodes', countryCode);
+            const fetchOptions = {};
+            if (signal) fetchOptions.signal = signal;
             const resp = await fetch(
                 `https://nominatim.openstreetmap.org/search?${params}`,
-                { headers: { 'User-Agent': 'RouteMind/3.0' } }
+                fetchOptions
             );
             if (!resp.ok) throw new Error('Nominatim search failed');
             return resp.json();
@@ -2784,11 +2803,15 @@
             const query   = buildNominatimQuery(streetQuery, city, selectedCountry.name);
             const dropdown = document.getElementById('depotStreetDropdown');
 
+            // Abort any previous in-flight autocomplete request
+            if (depotNominatimController) depotNominatimController.abort();
+            depotNominatimController = new AbortController();
+
             dropdown.innerHTML = '<div class="autocomplete-hint">Searching…</div>';
             dropdown.classList.add('open');
 
             try {
-                const results = await nominatimSearch(query, selectedCountry.code);
+                const results = await nominatimSearch(query, selectedCountry.code, 6, depotNominatimController.signal);
                 if (!results.length) {
                     dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
                     return;
@@ -2804,6 +2827,7 @@
                     >${escapeHtml(addr.label)}</div>`;
                 }).join('');
             } catch (err) {
+                if (err.name === 'AbortError') return; // Superseded by newer request
                 dropdown.innerHTML = `<div class="autocomplete-hint">Search failed: ${escapeHtml(err.message)}</div>`;
             }
         }
@@ -2835,14 +2859,23 @@
             const house  = document.getElementById('depotHouse').value.trim();
 
             if (!city && !street) {
-                setDepotStatus(false, 'Enter a city and/or street first');                return;
+                setDepotStatus(false, 'Enter a city and/or street first');
+                return;
             }
+
+            // Prevent concurrent geocode requests for the depot
+            if (depotGeocodeInProgress) return;
+            depotGeocodeInProgress = true;
+
+            // Abort any pending autocomplete request so its result doesn't override ours
+            if (depotNominatimController) { depotNominatimController.abort(); depotNominatimController = null; }
 
             setDepotStatus(false, 'Geocoding…');
 
+            const controller = new AbortController();
             try {
                 const query   = buildNominatimQuery([house, street].filter(Boolean).join(' '), city, selectedCountry.name);
-                const results = await nominatimSearch(query, selectedCountry.code, 1);
+                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal);
 
                 if (!results.length) {
                     setDepotStatus(false, '⚠️ Address not found - try different spelling');
@@ -2853,11 +2886,21 @@
                 applyDepotGeocoords(addr.lat, addr.lng, addr.label,
                     street || addr.street, city || addr.city);
             } catch (err) {
-                setDepotStatus(false, `⚠️ Geocoding failed: ${err.message}`);
+                if (err.name !== 'AbortError') {
+                    setDepotStatus(false, `⚠️ Geocoding failed: ${err.message}`);
+                }
+            } finally {
+                depotGeocodeInProgress = false;
             }
         }
 
         function applyDepotGeocoords(lat, lng, label, street, city) {
+            // Reject coordinates from malformed geocoder responses
+            if (!isValidCoord(lat) || !isValidCoord(lng)) {
+                setDepotStatus(false, '⚠️ Geocoder returned invalid coordinates');
+                return;
+            }
+
             depotData.lat        = lat;
             depotData.lng        = lng;
             depotData.label      = label;
@@ -2914,16 +2957,20 @@
 
         async function fetchStopSuggestions(idx, streetQuery) {
             const cityInput  = document.getElementById(`stopCity_${idx}`);
-            const city       = cityInput ? cityInput.value.trim() : (stops[idx].city || '');
+            const city       = cityInput ? cityInput.value.trim() : (stops[idx] ? stops[idx].city || '' : '');
             const query      = buildNominatimQuery(streetQuery, city, selectedCountry.name);
             const dropdown   = document.getElementById(`stopStreetDropdown_${idx}`);
             if (!dropdown) return;
+
+            // Abort any previous in-flight autocomplete for this stop
+            if (stopNominatimControllers[idx]) stopNominatimControllers[idx].abort();
+            stopNominatimControllers[idx] = new AbortController();
 
             dropdown.innerHTML = '<div class="autocomplete-hint">Searching…</div>';
             dropdown.classList.add('open');
 
             try {
-                const results = await nominatimSearch(query, selectedCountry.code);
+                const results = await nominatimSearch(query, selectedCountry.code, 6, stopNominatimControllers[idx].signal);
                 if (!results.length) {
                     dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
                     return;
@@ -2939,6 +2986,7 @@
                     >${escapeHtml(addr.label)}</div>`;
                 }).join('');
             } catch (err) {
+                if (err.name === 'AbortError') return; // Superseded by newer request
                 dropdown.innerHTML = `<div class="autocomplete-hint">Search failed: ${escapeHtml(err.message)}</div>`;
             }
         }
@@ -2980,11 +3028,19 @@
                 return;
             }
 
+            // Prevent concurrent geocode requests for the same stop
+            if (stopGeocodeInProgress[idx]) return;
+            stopGeocodeInProgress[idx] = true;
+
+            // Abort any pending autocomplete so it doesn't override the geocode result
+            if (stopNominatimControllers[idx]) { stopNominatimControllers[idx].abort(); stopNominatimControllers[idx] = null; }
+
             setStopStatus(idx, false, 'Geocoding…');
 
+            const controller = new AbortController();
             try {
                 const query   = buildNominatimQuery([house, street].filter(Boolean).join(' '), city, selectedCountry.name);
-                const results = await nominatimSearch(query, selectedCountry.code, 1);
+                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal);
 
                 if (!results.length) {
                     setStopStatus(idx, false, '⚠️ Address not found - try different spelling');
@@ -2995,11 +3051,24 @@
                 applyStopGeocoords(idx, addr.lat, addr.lng, addr.label,
                     street || addr.street, city || addr.city);
             } catch (err) {
-                setStopStatus(idx, false, `⚠️ Geocoding failed: ${err.message}`);
+                if (err.name !== 'AbortError') {
+                    setStopStatus(idx, false, `⚠️ Geocoding failed: ${err.message}`);
+                }
+            } finally {
+                stopGeocodeInProgress[idx] = false;
             }
         }
 
         function applyStopGeocoords(idx, lat, lng, label, street, city) {
+            // Guard: stop may have been removed while an async geocode was in-flight
+            if (!stops[idx]) return;
+
+            // Guard: reject invalid coordinates from malformed geocoder responses
+            if (!isValidCoord(lat) || !isValidCoord(lng)) {
+                setStopStatus(idx, false, '⚠️ Geocoder returned invalid coordinates');
+                return;
+            }
+
             stops[idx].lat         = lat;
             stops[idx].lng         = lng;
             stops[idx].x           = lng;
@@ -3078,17 +3147,17 @@
                         <div class="stop-timing-col">
                             <label>W. Start</label>
                             <input type="number" value="${stop.windowStart}" placeholder="0"
-                                   onchange="stops[${idx}].windowStart=parseFloat(this.value)||0">
+                                   onchange="stops[${idx}].windowStart=parseFloat(this.value)??0">
                         </div>
                         <div class="stop-timing-col">
                             <label>W. End</label>
                             <input type="number" value="${stop.windowEnd}" placeholder="480"
-                                   onchange="stops[${idx}].windowEnd=parseFloat(this.value)||480">
+                                   onchange="stops[${idx}].windowEnd=(v=>isNaN(v)?480:v)(parseFloat(this.value))">
                         </div>
                         <div class="stop-timing-col">
                             <label>Service (min)</label>
                             <input type="number" value="${stop.serviceTime}" placeholder="5" step="0.1"
-                                   onchange="stops[${idx}].serviceTime=parseFloat(this.value)||0">
+                                   onchange="stops[${idx}].serviceTime=Math.max(0,parseFloat(this.value)||0)">
                         </div>
                         <div class="stop-timing-col">
                             <label>Priority</label>
@@ -3123,6 +3192,16 @@
         }
 
         function removeStop(idx) {
+            // Cancel any pending debounce timer for this stop before removing
+            if (stopDebounceTimers[idx] !== undefined) {
+                clearTimeout(stopDebounceTimers[idx]);
+                delete stopDebounceTimers[idx];
+            }
+            // Cancel any in-flight Nominatim request for this stop
+            if (stopNominatimControllers[idx]) {
+                stopNominatimControllers[idx].abort();
+                delete stopNominatimControllers[idx];
+            }
             stops.splice(idx, 1);
             renderStops();
         }
@@ -3137,18 +3216,50 @@
             const depotXVal   = parseFloat(document.getElementById('depotX').value);
             const depotYVal   = parseFloat(document.getElementById('depotY').value);
 
-            if (!isFinite(depotLatVal) || !isFinite(depotLngVal)) {
+            if (!isValidCoord(depotLatVal) || !isValidCoord(depotLngVal)) {
                 throw new Error('Depot address has not been geocoded. Please geocode the depot first.');
             }
 
             // Validate stops
             for (const stop of stops) {
-                if (!stop.geocoded || !isFinite(stop.lat) || !isFinite(stop.lng)) {
+                if (!stop.geocoded || !isValidCoord(stop.lat) || !isValidCoord(stop.lng)) {
                     throw new Error(`Stop ${stop.id} has not been geocoded. Please geocode all stops before optimizing.`);
                 }
             }
 
+            // Validate settings fields
+            const maxShift = parseFloat(document.getElementById('maxShiftTime').value);
+            if (!isFinite(maxShift) || maxShift <= 0) {
+                throw new Error('Max Shift Time must be a positive number.');
+            }
+            const maxIter = parseInt(document.getElementById('maxIterations').value, 10);
+            if (!isFinite(maxIter) || maxIter < 1) {
+                throw new Error('Max Iterations must be a positive integer.');
+            }
+            const noImprove = parseInt(document.getElementById('noImprovementLimit').value, 10);
+            if (!isFinite(noImprove) || noImprove < 1) {
+                throw new Error('No Improvement Limit must be a positive integer.');
+            }
+
             const timeLimitValue = document.getElementById('timeLimit').value;
+            const timeLimit = timeLimitValue === '' ? null : parseFloat(timeLimitValue);
+            if (timeLimit !== null && (!isFinite(timeLimit) || timeLimit < 0)) {
+                throw new Error('Time Limit must be empty (unlimited) or a non-negative number of seconds.');
+            }
+
+            const weights = {
+                w_dist:     parseFloat(document.getElementById('weightDistance').value),
+                w_wait:     parseFloat(document.getElementById('weightWait').value),
+                w_late:     parseFloat(document.getElementById('weightLate').value),
+                w_priority: parseFloat(document.getElementById('weightPriority').value),
+                w_shift:    parseFloat(document.getElementById('weightShift').value)
+            };
+            for (const [key, val] of Object.entries(weights)) {
+                if (!isFinite(val) || val < 0) {
+                    throw new Error(`Weight "${key}" must be a non-negative number.`);
+                }
+            }
+
             return {
                 depot: {
                     x: depotXVal,
@@ -3177,19 +3288,13 @@
                     service_time: s.serviceTime,
                     priority: s.priority
                 })),
-                max_shift_time: parseFloat(document.getElementById('maxShiftTime').value),
-                weights: {
-                    w_dist:     parseFloat(document.getElementById('weightDistance').value),
-                    w_wait:     parseFloat(document.getElementById('weightWait').value),
-                    w_late:     parseFloat(document.getElementById('weightLate').value),
-                    w_priority: parseFloat(document.getElementById('weightPriority').value),
-                    w_shift:    parseFloat(document.getElementById('weightShift').value)
-                },
+                max_shift_time: maxShift,
+                weights,
                 optimization: {
                     algorithm:            document.getElementById('algorithm').value,
-                    max_iterations:       parseInt(document.getElementById('maxIterations').value, 10),
-                    no_improvement_limit: parseInt(document.getElementById('noImprovementLimit').value, 10),
-                    time_limit:           timeLimitValue === '' ? null : parseFloat(timeLimitValue)
+                    max_iterations:       maxIter,
+                    no_improvement_limit: noImprove,
+                    time_limit:           timeLimit
                 }
             };
         }
@@ -3219,7 +3324,7 @@
             document.getElementById('depotStreet').value = d.street || '';
             document.getElementById('depotHouse').value  = d.house_number || '';
 
-            const hasGeo = isFinite(d.lat) && d.lat !== null && isFinite(d.lng) && d.lng !== null;
+            const hasGeo = isValidCoord(d.lat) && isValidCoord(d.lng);
             if (hasGeo) {
                 document.getElementById('depotLat').value = d.lat;
                 document.getElementById('depotLng').value = d.lng;
@@ -3247,7 +3352,7 @@
 
             // Stops
             stops = payload.stops.map(stop => {
-                const sg = isFinite(stop.lat) && stop.lat !== null && isFinite(stop.lng) && stop.lng !== null;
+                const sg = isValidCoord(stop.lat) && isValidCoord(stop.lng);
                 return {
                     id: stop.id,
                     city: stop.city || '',
@@ -3547,6 +3652,20 @@
         }
 
         function clearForm() {
+            // Cancel any pending Nominatim requests / debounce timers
+            if (depotNominatimController) { depotNominatimController.abort(); depotNominatimController = null; }
+            clearTimeout(depotDebounceTimer);
+            for (const idx of Object.keys(stopNominatimControllers)) {
+                stopNominatimControllers[idx].abort();
+                delete stopNominatimControllers[idx];
+            }
+            for (const idx of Object.keys(stopDebounceTimers)) {
+                clearTimeout(stopDebounceTimers[idx]);
+                delete stopDebounceTimers[idx];
+            }
+            // Close any open autocomplete dropdowns
+            document.querySelectorAll('.autocomplete-dropdown.open').forEach(d => d.classList.remove('open'));
+
             document.getElementById('depotCity').value   = '';
             document.getElementById('depotStreet').value = '';
             document.getElementById('depotHouse').value  = '';
@@ -3730,13 +3849,18 @@
         /* ============================================================
          *  VISUALIZATION DISPATCHER
          * ============================================================ */
+        // Safe numeric guard: explicitly rejects null/undefined (isFinite(null)===true in JS)
+        function isValidCoord(v) {
+            return v !== null && v !== undefined && isFinite(v);
+        }
+
         function drawVisualization(result) {
             if (!result) return;
 
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
-            const hasGeoCoords = isFinite(depotLat) && isFinite(depotLng)
-                && stops.some(s => isFinite(s.lat) && isFinite(s.lng));
+            const hasGeoCoords = isValidCoord(depotLat) && isValidCoord(depotLng)
+                && stops.some(s => isValidCoord(s.lat) && isValidCoord(s.lng));
 
             if (hasGeoCoords) {
                 document.getElementById('visualization').style.display = 'none';
@@ -3802,17 +3926,18 @@
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
+            if (!data.routes || data.routes.length === 0) throw new Error('Routing service returned no routes');
             return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
         }
 
         async function renderMapVisualization(result) {
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
-            if (!isFinite(depotLat) || !isFinite(depotLng)) return;
+            if (!isValidCoord(depotLat) || !isValidCoord(depotLng)) return;
 
             const orderedStops = result.optimized_route_order
                 .map(id => stops.find(s => s.id === id))
-                .filter(s => s && isFinite(s.lat) && isFinite(s.lng));
+                .filter(s => s && isValidCoord(s.lat) && isValidCoord(s.lng));
 
             const geoPoints = orderedStops.length > 0
                 ? [{ lat: depotLat, lng: depotLng }, ...orderedStops.map(s => ({ lat: s.lat, lng: s.lng }))]
