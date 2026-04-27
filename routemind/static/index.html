@@ -2599,7 +2599,13 @@
         }
 
         async function readApiError(response) {
-            let detail = `HTTP ${response.status}`;
+            const STATUS_MESSAGES = {
+                405: 'Method not allowed — please ensure you are accessing the app through its own URL (not a proxy).',
+                429: 'Too many requests. Please wait a moment and try again.',
+                500: 'Internal server error. Please try again later.',
+                503: 'Service unavailable. Please try again later.',
+            };
+            let detail = STATUS_MESSAGES[response.status] || `HTTP ${response.status}`;
             try {
                 const data = await response.json();
                 if (typeof data.detail === 'string') {

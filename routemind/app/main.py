@@ -72,9 +72,11 @@ rate_limiter = InMemoryRateLimiter()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=True,
+    # allow_origins=["*"] lets browsers on any origin (LAN IP, custom hostname, etc.)
+    # reach the API when running self-hosted.  The app authenticates every sensitive
+    # endpoint with Bearer tokens, so there is no cookie-based CSRF exposure.
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
