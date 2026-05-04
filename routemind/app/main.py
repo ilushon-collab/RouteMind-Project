@@ -1,7 +1,12 @@
 import logging
+import json
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,6 +65,9 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("routemind")
+NOMINATIM_SEARCH_URL = os.getenv("ROUTEMIND_NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
+NOMINATIM_USER_AGENT = os.getenv("ROUTEMIND_NOMINATIM_USER_AGENT", "RouteMind/3.0 address search")
+NOMINATIM_TIMEOUT_SECONDS = float(os.getenv("ROUTEMIND_NOMINATIM_TIMEOUT_SECONDS", "4"))
 
 
 @asynccontextmanager
@@ -251,6 +259,20 @@ LOCAL_GEOCODER_PLACES = [
         "address": {"road": "Champ de Mars", "city": "Paris", "country_code": "fr"},
         "aliases": ["eiffel tower", "champ de mars"],
     },
+    {
+        "lat": 32.3216,
+        "lon": 34.8532,
+        "display_name": "Ezra Street, Netanya, Israel",
+        "address": {"road": "Ezra Street", "city": "Netanya", "country": "Israel", "country_code": "il"},
+        "aliases": ["ezra", "ezra st", "ezra street", "netanya"],
+    },
+    {
+        "lat": 32.3329,
+        "lon": 34.8599,
+        "display_name": "Herzl Street, Netanya, Israel",
+        "address": {"road": "Herzl Street", "city": "Netanya", "country": "Israel", "country_code": "il"},
+        "aliases": ["herzl", "herzl st", "herzl street", "netanya"],
+    },
 ]
 
 
@@ -258,12 +280,82 @@ def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
     if country_code and place["address"].get("country_code") != country_code.lower():
         return False
     searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
-    query_parts = _normalize_place_text(query).split()
+    query_parts = [part for part in _normalize_place_text(query).split() if not part.isdigit()]
     return all(part in searchable for part in query_parts)
 
 
 def _normalize_place_text(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else " " for char in value)
+
+
+def _build_address_query(
+    q: str | None,
+    street: str | None,
+    city: str | None,
+    country: str | None,
+    house_number: str | None,
+) -> str:
+    street_line = " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
+    structured_query = ", ".join(part.strip() for part in [street_line, city or "", country or ""] if part and part.strip())
+    return structured_query or (q or "").strip()
+
+
+def _fetch_nominatim_results(
+    query: str,
+    country_code: str | None,
+    limit: int,
+    city: str | None = None,
+    street: str | None = None,
+    country: str | None = None,
+    house_number: str | None = None,
+) -> list[GeocodeResult]:
+    params = {
+        "format": "jsonv2",
+        "addressdetails": "1",
+        "limit": str(limit),
+        "accept-language": "en",
+    }
+    if city or street or house_number:
+        if street or house_number:
+            params["street"] = " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
+        if city:
+            params["city"] = city
+        if country:
+            params["country"] = country
+    else:
+        params["q"] = query
+    if country_code:
+        params["countrycodes"] = country_code.lower()
+
+    request_url = f"{NOMINATIM_SEARCH_URL}?{urlencode(params)}"
+    request = UrlRequest(request_url, headers={"User-Agent": NOMINATIM_USER_AGENT})
+    with urlopen(request, timeout=NOMINATIM_TIMEOUT_SECONDS) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    return [
+        GeocodeResult(
+            lat=float(item["lat"]),
+            lon=float(item["lon"]),
+            display_name=item.get("display_name", query),
+            address=item.get("address") or {},
+        )
+        for item in payload
+        if "lat" in item and "lon" in item
+    ]
+
+
+def _search_local_places(query: str, country_code: str | None, limit: int) -> list[GeocodeResult]:
+    matches = [
+        GeocodeResult(
+            lat=place["lat"],
+            lon=place["lon"],
+            display_name=place["display_name"],
+            address=place["address"],
+        )
+        for place in LOCAL_GEOCODER_PLACES
+        if _place_matches(place, query, country_code)
+    ]
+    return matches[:limit]
 
 
 def _calculate_geo_distance(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
@@ -293,21 +385,26 @@ def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> l
 
 @app.get("/geocode/search", response_model=list[GeocodeResult])
 def local_geocode_search(
-    q: str = Query(min_length=1),
+    q: str | None = Query(default=None, min_length=1),
     country_code: str | None = Query(default=None, min_length=2, max_length=2),
     limit: int = Query(default=6, ge=1, le=10),
+    city: str | None = None,
+    street: str | None = None,
+    house_number: str | None = None,
+    country: str | None = None,
 ) -> list[GeocodeResult]:
-    matches = [
-        GeocodeResult(
-            lat=place["lat"],
-            lon=place["lon"],
-            display_name=place["display_name"],
-            address=place["address"],
-        )
-        for place in LOCAL_GEOCODER_PLACES
-        if _place_matches(place, q, country_code)
-    ]
-    return matches[:limit]
+    query = _build_address_query(q, street, city, country, house_number)
+    if not query:
+        raise HTTPException(status_code=422, detail="Search query or address fields are required.")
+
+    try:
+        external_results = _fetch_nominatim_results(query, country_code, limit, city, street, country, house_number)
+        if external_results:
+            return external_results[:limit]
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError) as exc:
+        logger.warning("nominatim_search_failed query=%s country_code=%s reason=%s", query, country_code, exc)
+
+    return _search_local_places(query, country_code, limit)
 
 
 @app.post("/route-road")

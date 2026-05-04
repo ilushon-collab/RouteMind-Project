@@ -4,6 +4,7 @@ import unittest
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -508,12 +509,44 @@ class RouteMindTests(unittest.TestCase):
         self.assertAlmostEqual(ratio, 10.0, delta=0.1)
 
     def test_local_geocode_search_returns_demo_address(self) -> None:
-        results = main.local_geocode_search("Tower Bridge, London, United Kingdom", "gb", 6)
+        with patch("app.main._fetch_nominatim_results", return_value=[]):
+            results = main.local_geocode_search("Tower Bridge, London, United Kingdom", "gb", 6)
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].address["city"], "London")
         self.assertAlmostEqual(results[0].lat, 51.5055, places=4)
         self.assertAlmostEqual(results[0].lon, -0.0754, places=4)
+
+    def test_geocode_search_falls_back_to_real_israel_address_fixture(self) -> None:
+        with patch("app.main._fetch_nominatim_results", return_value=[]):
+            results = main.local_geocode_search(
+                q="1 Ezra, Netanya, Israel",
+                country_code="il",
+                limit=6,
+                city="Netanya",
+                street="Ezra",
+                house_number="1",
+                country="Israel",
+            )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].address["city"], "Netanya")
+        self.assertEqual(results[0].address["country_code"], "il")
+        self.assertIn("Ezra", results[0].display_name)
+
+    def test_geocode_search_uses_structured_provider_parameters(self) -> None:
+        with patch("app.main._fetch_nominatim_results", return_value=[]) as fetch:
+            main.local_geocode_search(
+                q="1 Ezra, Netanya, Israel",
+                country_code="il",
+                limit=1,
+                city="Netanya",
+                street="Ezra",
+                house_number="1",
+                country="Israel",
+            )
+
+        fetch.assert_called_once_with("1 Ezra, Netanya, Israel", "il", 1, "Netanya", "Ezra", "Israel", "1")
 
     def test_local_road_route_mode_changes_eta(self) -> None:
         waypoints = [

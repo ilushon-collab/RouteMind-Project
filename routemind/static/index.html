@@ -2938,12 +2938,16 @@
         /* ============================================================
          *  NOMINATIM GEOCODING / AUTOCOMPLETE
          * ============================================================ */
-        async function nominatimSearch(query, countryCode, limit = 6, signal = undefined) {
+        async function nominatimSearch(query, countryCode, limit = 6, signal = undefined, addressParts = {}) {
             const params = new URLSearchParams({
                 q: query,
                 limit: String(limit)
             });
             if (countryCode) params.set('country_code', countryCode);
+            if (addressParts.city) params.set('city', addressParts.city);
+            if (addressParts.street) params.set('street', addressParts.street);
+            if (addressParts.houseNumber) params.set('house_number', addressParts.houseNumber);
+            if (addressParts.country) params.set('country', addressParts.country);
             const fetchOptions = {};
             if (signal) fetchOptions.signal = signal;
             const resp = await fetch(`/geocode/search?${params}`, fetchOptions);
@@ -3002,9 +3006,13 @@
             dropdown.classList.add('open');
 
             try {
-                const results = await nominatimSearch(query, selectedCountry.code, 6, depotNominatimController.signal);
+                const results = await nominatimSearch(query, selectedCountry.code, 6, depotNominatimController.signal, {
+                    city,
+                    street: streetQuery,
+                    country: selectedCountry.name
+                });
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions yet — keep the typed street and press Geocode.</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -3066,10 +3074,15 @@
             const controller = new AbortController();
             try {
                 const query   = buildNominatimQuery([house, street].filter(Boolean).join(' '), city, selectedCountry.name);
-                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal);
+                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal, {
+                    city,
+                    street,
+                    houseNumber: house,
+                    country: selectedCountry.name
+                });
 
                 if (!results.length) {
-                    setDepotStatus(false, '⚠️ Address not found - try different spelling');
+                    setDepotStatus(false, '⚠️ Address not found. Autocomplete is optional; edit the full address or try city + street only.');
                     return;
                 }
 
@@ -3161,9 +3174,13 @@
             dropdown.classList.add('open');
 
             try {
-                const results = await nominatimSearch(query, selectedCountry.code, 6, stopNominatimControllers[idx].signal);
+                const results = await nominatimSearch(query, selectedCountry.code, 6, stopNominatimControllers[idx].signal, {
+                    city,
+                    street: streetQuery,
+                    country: selectedCountry.name
+                });
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No results - try a different spelling</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions yet — keep the typed street and press Geocode.</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -3231,10 +3248,15 @@
             const controller = new AbortController();
             try {
                 const query   = buildNominatimQuery([house, street].filter(Boolean).join(' '), city, selectedCountry.name);
-                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal);
+                const results = await nominatimSearch(query, selectedCountry.code, 1, controller.signal, {
+                    city,
+                    street,
+                    houseNumber: house,
+                    country: selectedCountry.name
+                });
 
                 if (!results.length) {
-                    setStopStatus(idx, false, '⚠️ Address not found - try different spelling');
+                    setStopStatus(idx, false, '⚠️ Address not found. Autocomplete is optional; edit the full address or try city + street only.');
                     return;
                 }
 
