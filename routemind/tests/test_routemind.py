@@ -21,6 +21,8 @@ from app.models import (  # noqa: E402
     LoginRequest,
     OptimizationConfig,
     RegisterRequest,
+    RoadRouteRequest,
+    RoadWaypoint,
     RouteRequest,
     ScenarioCreateRequest,
     Stop,
@@ -504,6 +506,26 @@ class RouteMindTests(unittest.TestCase):
         ratio = walking_result.total_travel_time / driving_result.total_travel_time
         # Speed ratio is 50/5 = 10; route geometry is fixed so travel-time ratio must be 10.
         self.assertAlmostEqual(ratio, 10.0, delta=0.1)
+
+    def test_local_geocode_search_returns_demo_address(self) -> None:
+        results = main.local_geocode_search("Tower Bridge, London, United Kingdom", "gb", 6)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].address["city"], "London")
+        self.assertAlmostEqual(results[0].lat, 51.5055, places=4)
+
+    def test_local_road_route_mode_changes_eta(self) -> None:
+        waypoints = [
+            RoadWaypoint(lat=51.5308, lng=-0.1238),
+            RoadWaypoint(lat=51.5055, lng=-0.0754),
+        ]
+
+        driving = main.local_road_route(RoadRouteRequest(waypoints=waypoints, mode="driving"))
+        walking = main.local_road_route(RoadRouteRequest(waypoints=waypoints, mode="walking"))
+
+        self.assertGreater(driving["distance"], 0)
+        self.assertGreater(len(driving["latLngs"]), 2)
+        self.assertGreater(walking["duration"], driving["duration"])
 
     def test_travel_mode_is_persisted_in_history(self) -> None:
         """travel_mode must survive the JSON round-trip into optimization_runs."""

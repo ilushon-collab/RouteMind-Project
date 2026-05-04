@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,11 +21,13 @@ from app.auth import (
 from app.evaluator import evaluate_route
 from app.models import (
     AuthResponse,
+    GeocodeResult,
     LoginRequest,
     OptimizationConfig,
     OptimizationHistoryDetail,
     OptimizationHistorySummary,
     RegisterRequest,
+    RoadRouteRequest,
     RouteRequest,
     RouteResponse,
     ScenarioCreateRequest,
@@ -49,7 +52,7 @@ from app.storage import (
     record_optimization_run,
     save_scenario,
 )
-from app.utils import build_distance_matrix
+from app.utils import EARTH_RADIUS_KM, build_distance_matrix
 
 
 logging.basicConfig(
@@ -183,6 +186,165 @@ def me(current_user: dict = Depends(get_current_user)) -> UserResponse:
 @app.get("/register")
 async def auth_entrypoint_fallback():
     return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-store"})
+
+
+LOCAL_GEOCODER_PLACES = [
+    {
+        "lat": 51.5308,
+        "lon": -0.1238,
+        "display_name": "King's Cross Station, Euston Road, London, United Kingdom",
+        "address": {"road": "King's Cross", "city": "London", "country_code": "gb"},
+        "aliases": ["king's cross", "kings cross", "euston road", "station"],
+    },
+    {
+        "lat": 51.5055,
+        "lon": -0.0754,
+        "display_name": "Tower Bridge, Tower Bridge Road, London, United Kingdom",
+        "address": {"road": "Tower Bridge Road", "city": "London", "country_code": "gb"},
+        "aliases": ["tower bridge", "tower bridge road"],
+    },
+    {
+        "lat": 51.5027,
+        "lon": -0.1528,
+        "display_name": "Hyde Park Corner, London, United Kingdom",
+        "address": {"road": "Hyde Park Corner", "city": "London", "country_code": "gb"},
+        "aliases": ["hyde park", "hyde park corner"],
+    },
+    {
+        "lat": 51.5054,
+        "lon": -0.0235,
+        "display_name": "Canary Wharf, London, United Kingdom",
+        "address": {"road": "Canary Wharf", "city": "London", "country_code": "gb"},
+        "aliases": ["canary wharf"],
+    },
+    {
+        "lat": 40.7580,
+        "lon": -73.9855,
+        "display_name": "Times Square, Manhattan, New York, United States",
+        "address": {"road": "Times Square", "city": "New York", "country_code": "us"},
+        "aliases": ["times square", "manhattan"],
+    },
+    {
+        "lat": 40.7484,
+        "lon": -73.9857,
+        "display_name": "Empire State Building, 20 W 34th Street, New York, United States",
+        "address": {"road": "W 34th Street", "city": "New York", "country_code": "us"},
+        "aliases": ["empire state", "34th street"],
+    },
+    {
+        "lat": 48.8584,
+        "lon": 2.2945,
+        "display_name": "Eiffel Tower, Paris, France",
+        "address": {"road": "Champ de Mars", "city": "Paris", "country_code": "fr"},
+        "aliases": ["eiffel tower", "champ de mars"],
+    },
+]
+
+
+def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
+    if country_code and place["address"].get("country_code") != country_code.lower():
+        return False
+    searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
+    query_parts = _normalize_place_text(query).split()
+    return all(part in searchable for part in query_parts)
+
+
+def _normalize_place_text(value: str) -> str:
+    return "".join(char.lower() if char.isalnum() else " " for char in value)
+
+
+def _haversine_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+    phi1, phi2 = math.radians(a_lat), math.radians(b_lat)
+    dphi = math.radians(b_lat - a_lat)
+    dlambda = math.radians(b_lng - a_lng)
+    half_chord_squared = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+    return EARTH_RADIUS_KM * 2 * math.atan2(math.sqrt(half_chord_squared), math.sqrt(1 - half_chord_squared))
+
+
+def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> list[list[float]]:
+    start_lat, start_lng = start
+    end_lat, end_lng = end
+    mid_lat = (start_lat + end_lat) / 2
+    mid_lng = (start_lng + end_lng) / 2
+    bend = min(max(abs(end_lat - start_lat) + abs(end_lng - start_lng), 0.002), 0.02) * 0.18
+    return [
+        [start_lat, start_lng],
+        [start_lat + (mid_lat - start_lat) * 0.8, mid_lng - bend],
+        [mid_lat + bend, mid_lng],
+        [mid_lat + (end_lat - mid_lat) * 0.8, mid_lng + bend],
+        [end_lat, end_lng],
+    ]
+
+
+@app.get("/geocode/search", response_model=list[GeocodeResult])
+def local_geocode_search(
+    q: str = Query(min_length=1),
+    country_code: str | None = Query(default=None, min_length=2, max_length=2),
+    limit: int = Query(default=6, ge=1, le=10),
+) -> list[GeocodeResult]:
+    matches = [
+        GeocodeResult(
+            lat=place["lat"],
+            lon=place["lon"],
+            display_name=place["display_name"],
+            address=place["address"],
+        )
+        for place in LOCAL_GEOCODER_PLACES
+        if _place_matches(place, q, country_code)
+    ]
+    return matches[:limit]
+
+
+@app.post("/route-road")
+def local_road_route(payload: RoadRouteRequest) -> dict:
+    if len(payload.waypoints) < 2:
+        raise HTTPException(status_code=422, detail="At least two waypoints are required.")
+
+    speed_kmh = 34.0 if payload.mode == "driving" else 4.8
+    road_factor = 1.28 if payload.mode == "driving" else 1.12
+    lat_lngs: list[list[float]] = []
+    legs: list[dict] = []
+    total_distance = 0.0
+    total_duration = 0.0
+
+    for idx, (start, end) in enumerate(zip(payload.waypoints, payload.waypoints[1:])):
+        km = _haversine_km(start.lat, start.lng, end.lat, end.lng) * road_factor
+        distance_m = km * 1000
+        duration_s = (km / speed_kmh) * 3600
+        segment_points = _segment_geometry((start.lat, start.lng), (end.lat, end.lng))
+        lat_lngs.extend(segment_points if idx == 0 else segment_points[1:])
+        total_distance += distance_m
+        total_duration += duration_s
+        legs.append(
+            {
+                "duration": duration_s,
+                "distance": distance_m,
+                "steps": [
+                    {
+                        "name": "local road network",
+                        "distance": distance_m,
+                        "duration": duration_s,
+                        "maneuver": {"type": "continue", "modifier": "straight"},
+                    },
+                    {
+                        "name": "",
+                        "distance": 0,
+                        "duration": 0,
+                        "maneuver": {"type": "arrive"},
+                    },
+                ],
+            }
+        )
+
+    return {
+        "latLngs": lat_lngs,
+        "duration": total_duration,
+        "distance": total_distance,
+        "legs": legs,
+    }
 
 
 @app.post("/optimize", response_model=RouteResponse)
