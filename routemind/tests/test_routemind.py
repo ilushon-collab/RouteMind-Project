@@ -333,5 +333,197 @@ class RouteMindTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 404)
 
 
+class HttpAuthFlowTests(unittest.TestCase):
+    """
+    End-to-end HTTP-level tests that exercise the full FastAPI stack
+    (CORS middleware, request body parsing, response serialisation).
+    These complement the unit tests above which bypass the HTTP layer.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from starlette.testclient import TestClient  # noqa: PLC0415
+        from app.auth import init_auth_storage, reset_auth_caches  # noqa: PLC0415
+        from app.storage import init_app_storage  # noqa: PLC0415
+
+        # The previous test class deletes TEST_AUTH_DIR in tearDownClass.
+        # Recreate the directory and DB schema so HTTP tests have a valid database.
+        TEST_AUTH_DIR.mkdir(parents=True, exist_ok=True)
+        reset_auth_caches()
+        init_auth_storage()
+        init_app_storage()
+
+        # Reset in-memory rate limiter so unit-test registrations don't bleed over.
+        main.rate_limiter._buckets.clear()
+        cls.client = TestClient(main.app, raise_server_exceptions=False)
+
+    def setUp(self) -> None:
+        # Clear per-test so tests within this class don't exhaust each other's limits.
+        main.rate_limiter._buckets.clear()
+
+    def _unique(self) -> str:
+        return uuid.uuid4().hex[:10]
+
+    # ------------------------------------------------------------------
+    # POST /register
+    # ------------------------------------------------------------------
+
+    def test_http_register_returns_201_with_token_and_user(self) -> None:
+        suffix = self._unique()
+        resp = self.client.post(
+            "/register",
+            json={"username": f"http{suffix}", "email": f"http{suffix}@test.com", "password": "password123"},
+        )
+        self.assertEqual(resp.status_code, 201)
+        body = resp.json()
+        self.assertIn("access_token", body)
+        self.assertIsInstance(body["access_token"], str)
+        self.assertGreater(len(body["access_token"]), 10)
+        self.assertEqual(body["user"]["username"], f"http{suffix}")
+        self.assertEqual(body["user"]["email"], f"http{suffix}@test.com")
+        self.assertIn("id", body["user"])
+        self.assertIn("created_at", body["user"])
+
+    def test_http_register_duplicate_username_returns_400(self) -> None:
+        suffix = self._unique()
+        payload = {"username": f"dup{suffix}", "email": f"dup{suffix}@test.com", "password": "password123"}
+        self.client.post("/register", json=payload)
+        resp = self.client.post("/register", json={**payload, "email": f"other{suffix}@test.com"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("detail", resp.json())
+
+    def test_http_register_duplicate_email_returns_400(self) -> None:
+        suffix = self._unique()
+        payload = {"username": f"em{suffix}", "email": f"em{suffix}@test.com", "password": "password123"}
+        self.client.post("/register", json=payload)
+        resp = self.client.post("/register", json={**payload, "username": f"em2{suffix}"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_http_register_short_password_returns_422(self) -> None:
+        suffix = self._unique()
+        resp = self.client.post(
+            "/register",
+            json={"username": f"pw{suffix}", "email": f"pw{suffix}@test.com", "password": "short"},
+        )
+        self.assertEqual(resp.status_code, 422)
+        detail = resp.json()["detail"]
+        self.assertTrue(
+            any("8" in (item.get("msg") or "") for item in detail),
+            msg=f"Expected min-length message, got: {detail}",
+        )
+
+    def test_http_register_missing_field_returns_422(self) -> None:
+        resp = self.client.post("/register", json={"username": "nopassword", "email": "np@test.com"})
+        self.assertEqual(resp.status_code, 422)
+
+    def test_http_register_get_serves_html(self) -> None:
+        resp = self.client.get("/register")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/html", resp.headers["content-type"])
+
+    # ------------------------------------------------------------------
+    # POST /login
+    # ------------------------------------------------------------------
+
+    def test_http_login_with_username_returns_200_with_token(self) -> None:
+        suffix = self._unique()
+        self.client.post(
+            "/register",
+            json={"username": f"lg{suffix}", "email": f"lg{suffix}@test.com", "password": "password123"},
+        )
+        resp = self.client.post("/login", json={"identity": f"lg{suffix}", "password": "password123"})
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertIn("access_token", body)
+        self.assertEqual(body["user"]["username"], f"lg{suffix}")
+
+    def test_http_login_with_email_returns_200_with_token(self) -> None:
+        suffix = self._unique()
+        self.client.post(
+            "/register",
+            json={"username": f"le{suffix}", "email": f"le{suffix}@test.com", "password": "password123"},
+        )
+        resp = self.client.post("/login", json={"identity": f"le{suffix}@test.com", "password": "password123"})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_http_login_wrong_password_returns_401(self) -> None:
+        suffix = self._unique()
+        self.client.post(
+            "/register",
+            json={"username": f"lw{suffix}", "email": f"lw{suffix}@test.com", "password": "password123"},
+        )
+        resp = self.client.post("/login", json={"identity": f"lw{suffix}", "password": "wrongpassword"})
+        self.assertEqual(resp.status_code, 401)
+
+    def test_http_login_unknown_user_returns_401(self) -> None:
+        resp = self.client.post("/login", json={"identity": "nobody_here", "password": "password123"})
+        self.assertEqual(resp.status_code, 401)
+
+    # ------------------------------------------------------------------
+    # GET /me
+    # ------------------------------------------------------------------
+
+    def test_http_me_with_valid_token_returns_user(self) -> None:
+        suffix = self._unique()
+        reg = self.client.post(
+            "/register",
+            json={"username": f"me{suffix}", "email": f"me{suffix}@test.com", "password": "password123"},
+        )
+        token = reg.json()["access_token"]
+        resp = self.client.get("/me", headers={"Authorization": f"Bearer {token}"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["username"], f"me{suffix}")
+
+    def test_http_me_without_token_returns_401(self) -> None:
+        resp = self.client.get("/me")
+        self.assertEqual(resp.status_code, 401)
+
+    # ------------------------------------------------------------------
+    # CORS — cross-origin preflight and actual POST
+    # ------------------------------------------------------------------
+
+    def test_http_cors_preflight_for_register_returns_200(self) -> None:
+        resp = self.client.options(
+            "/register",
+            headers={
+                "Origin": "http://192.168.1.100:8000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access-control-allow-origin", resp.headers)
+
+    def test_http_cors_cross_origin_post_includes_acao_header(self) -> None:
+        suffix = self._unique()
+        resp = self.client.post(
+            "/register",
+            json={"username": f"co{suffix}", "email": f"co{suffix}@test.com", "password": "password123"},
+            headers={"Origin": "http://192.168.1.100:8000"},
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertIn("access-control-allow-origin", resp.headers)
+
+    # ------------------------------------------------------------------
+    # HTML serving — Cache-Control header
+    # ------------------------------------------------------------------
+
+    def test_http_root_serves_html_with_no_store(self) -> None:
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/html", resp.headers["content-type"])
+        self.assertIn("no-store", resp.headers.get("cache-control", ""))
+
+    def test_http_register_get_serves_html_with_no_store(self) -> None:
+        resp = self.client.get("/register")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("no-store", resp.headers.get("cache-control", ""))
+
+    def test_http_login_get_serves_html_with_no_store(self) -> None:
+        resp = self.client.get("/login")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("no-store", resp.headers.get("cache-control", ""))
+
+
 if __name__ == "__main__":
     unittest.main()

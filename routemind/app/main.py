@@ -182,7 +182,7 @@ def me(current_user: dict = Depends(get_current_user)) -> UserResponse:
 @app.get("/login")
 @app.get("/register")
 async def auth_entrypoint_fallback():
-    return FileResponse(static_dir / "index.html")
+    return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-store"})
 
 
 @app.post("/optimize", response_model=RouteResponse)
@@ -338,4 +338,4 @@ def health_check() -> dict:
 
 @app.get("/")
 async def root():
-    return FileResponse(static_dir / "index.html")
+    return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-store"})
