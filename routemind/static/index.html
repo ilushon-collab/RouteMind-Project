@@ -3329,6 +3329,7 @@
                 })),
                 max_shift_time: maxShift,
                 weights,
+                travel_mode: document.getElementById('travelModeSelect').value || 'driving',
                 optimization: {
                     algorithm:            document.getElementById('algorithm').value,
                     max_iterations:       maxIter,
@@ -3945,6 +3946,9 @@
                 leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
             }
             mapEl.style.display = 'block';
+            // Force the browser to compute the new layout before Leaflet reads
+            // the container dimensions, preventing a blank 0×0 map.
+            mapEl.getBoundingClientRect();
             leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
             updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
         }
@@ -4071,8 +4075,16 @@
         }
 
         async function onTravelModeChange() {
+            // Update the displayed OSRM route polyline for the new mode.
             if (leafletMap && window.latestOptimizationResult) {
                 await renderMapVisualization(window.latestOptimizationResult);
+            }
+            // Re-run optimization so that the dashboard metrics (travel time,
+            // finish time, costs) also reflect the new walking/driving speed.
+            // Only triggered when the user is already authenticated and a valid
+            // route is loaded, to avoid unexpected auth prompts.
+            if (window.latestOptimizationResult && stops.length > 0 && getStoredToken()) {
+                await optimizeRoute();
             }
         }
 

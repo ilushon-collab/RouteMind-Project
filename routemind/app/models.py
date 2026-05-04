@@ -74,6 +74,7 @@ class RouteRequest(BaseModel):
     max_shift_time: float
     weights: Weights
     optimization: Optional[OptimizationConfig] = None
+    travel_mode: Literal["driving", "walking"] = "driving"
 
     @field_validator('max_shift_time')
     @classmethod
