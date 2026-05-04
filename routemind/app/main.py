@@ -429,7 +429,7 @@ def local_geocode_search(
         )
         if external_results:
             return external_results[:limit]
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+    except (HTTPError, URLError, json.JSONDecodeError) as exc:
         logger.warning("nominatim_search_failed query=%s country_code=%s reason=%s", query, country_code, exc)
 
     return _search_local_places(query, country_code, limit)
