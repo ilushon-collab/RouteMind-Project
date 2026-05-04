@@ -3357,6 +3357,10 @@
             document.getElementById('weightLate').value            = payload.weights?.w_late ?? 2;
             document.getElementById('weightPriority').value        = payload.weights?.w_priority ?? 1;
             document.getElementById('weightShift').value           = payload.weights?.w_shift ?? 4;
+            // Restore travel mode so subsequent optimizations use the same mode that was saved.
+            if (payload.travel_mode) {
+                document.getElementById('travelModeSelect').value = payload.travel_mode;
+            }
 
             // Depot
             const d = payload.depot;
@@ -3972,6 +3976,11 @@
                     opacity: 1
                 }).addTo(leafletMap);
             }
+
+            // Invalidate size in the next tick so the map redraws correctly
+            // if the container dimensions changed while the tile layer was loading
+            // (e.g. switching between satellite and streets while the map was hidden).
+            setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 0);
         }
 
         async function fetchOSRMRoute(waypoints, mode, signal) {

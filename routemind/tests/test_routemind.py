@@ -332,6 +332,183 @@ class RouteMindTests(unittest.TestCase):
 
         self.assertEqual(ctx.exception.status_code, 404)
 
+    # ------------------------------------------------------------------
+    # Window & service-time validators
+    # ------------------------------------------------------------------
+
+    def test_window_end_less_than_window_start_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            Stop(id=1, x=0, y=0, window_start=10, window_end=5, service_time=1, priority=1)
+
+    def test_service_time_negative_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            Stop(id=1, x=0, y=0, window_start=0, window_end=10, service_time=-1, priority=1)
+
+    # ------------------------------------------------------------------
+    # Scenario upsert
+    # ------------------------------------------------------------------
+
+    def test_scenario_with_same_name_is_updated_not_duplicated(self) -> None:
+        user = self.make_user("upsert-test")
+        route_3stops = self.make_route()
+        route_1stop = RouteRequest(
+            depot=Depot(x=0, y=0),
+            stops=[Stop(id=1, x=1, y=1, window_start=0, window_end=10, service_time=1, priority=1)],
+            max_shift_time=25,
+            weights=Weights(),
+        )
+
+        s1 = main.create_or_update_scenario(
+            ScenarioCreateRequest(name="My Route", route=route_3stops),
+            DummyRequest("upsert-test"),
+            user,
+        )
+        s2 = main.create_or_update_scenario(
+            ScenarioCreateRequest(name="My Route", route=route_1stop),
+            DummyRequest("upsert-test"),
+            user,
+        )
+
+        # Same record updated, not a new one inserted
+        self.assertEqual(s1.id, s2.id)
+        self.assertEqual(s2.stop_count, 1)
+        # Only one scenario in the list
+        self.assertEqual(len(main.get_saved_scenarios(user)), 1)
+
+    # ------------------------------------------------------------------
+    # Optimize rate-limit enforcement
+    # ------------------------------------------------------------------
+
+    def test_optimize_rate_limit_is_enforced(self) -> None:
+        user = self.make_user("opt-rl")
+        route = RouteRequest(
+            depot=Depot(x=0, y=0),
+            stops=[Stop(id=1, x=1, y=1, window_start=0, window_end=10, service_time=1, priority=1)],
+            max_shift_time=25,
+            weights=Weights(),
+            optimization=OptimizationConfig(max_iterations=5, no_improvement_limit=3),
+        )
+
+        for _ in range(30):
+            main.optimize_route(route, DummyRequest("opt-rl"), None, user)
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.optimize_route(route, DummyRequest("opt-rl"), None, user)
+
+        self.assertEqual(ctx.exception.status_code, 429)
+
+    # ------------------------------------------------------------------
+    # Geo-based routes: realistic travel time & walking vs driving
+    # ------------------------------------------------------------------
+
+    def make_israel_route(self, travel_mode: str = "driving") -> RouteRequest:
+        """Route with real geocoded coordinates for Israeli cities.
+
+        Depot: Netanya city centre  (lat 32.33, lng 34.86)
+        Stop 1: Herzliya            (lat 32.16, lng 34.84) — ~19 km south
+        Stop 2: Hadera              (lat 32.44, lng 34.92) — ~13 km north-east
+
+        All coordinates are real; the route is the canonical example used to
+        verify that RouteMind produces realistic travel-time metrics.
+        """
+        return RouteRequest(
+            depot=Depot(x=34.86, y=32.33, lat=32.33, lng=34.86),
+            stops=[
+                Stop(
+                    id=1, x=34.84, y=32.16, lat=32.16, lng=34.84,
+                    window_start=0, window_end=600, service_time=10, priority=3,
+                ),
+                Stop(
+                    id=2, x=34.92, y=32.44, lat=32.44, lng=34.92,
+                    window_start=0, window_end=600, service_time=10, priority=2,
+                ),
+            ],
+            max_shift_time=480,
+            weights=Weights(w_dist=1.0, w_wait=0.5, w_late=3.0, w_priority=2.0, w_shift=4.0),
+            optimization=OptimizationConfig(algorithm="2opt", max_iterations=50, no_improvement_limit=10),
+            travel_mode=travel_mode,
+        )
+
+    def test_geo_route_driving_produces_realistic_travel_time(self) -> None:
+        """Netanya → Herzliya + Herzliya → Hadera + return should be
+        roughly 60–65 km at 50 km/h ≈ 75–80 min driving, well under the
+        480-minute shift window.
+        """
+        user = self.make_user("geo-driving")
+        result = main.optimize_route(self.make_israel_route("driving"), DummyRequest("geo-driving"), None, user)
+
+        # The three legs together span ~65 km; at 50 km/h that is ~78 min.
+        # Allow a generous band to account for the optimiser choosing different
+        # orderings (longest possible round-trip is still well under 180 min).
+        self.assertGreater(result.total_travel_time, 30.0)
+        self.assertLess(result.total_travel_time, 180.0)
+        self.assertTrue(result.feasible)
+
+    def test_walking_travel_time_is_ten_times_driving(self) -> None:
+        """TravelTimeProvider uses 50 km/h for driving and 5 km/h for walking,
+        so walking metrics must be exactly 10 × the driving metrics.
+        """
+        user = self.make_user("mode-ratio")
+
+        driving_result = main.optimize_route(
+            self.make_israel_route("driving"), DummyRequest("mode-ratio"), None, user
+        )
+        walking_result = main.optimize_route(
+            self.make_israel_route("walking"), DummyRequest("mode-ratio"), None, user
+        )
+
+        self.assertGreater(walking_result.total_travel_time, driving_result.total_travel_time)
+        ratio = walking_result.total_travel_time / driving_result.total_travel_time
+        # Speed ratio is 50/5 = 10; route geometry is fixed so travel-time ratio must be 10.
+        self.assertAlmostEqual(ratio, 10.0, delta=0.1)
+
+    def test_travel_mode_is_persisted_in_history(self) -> None:
+        """travel_mode must survive the JSON round-trip into optimization_runs."""
+        user = self.make_user("mode-history")
+        main.optimize_route(self.make_israel_route("walking"), DummyRequest("mode-history"), None, user)
+
+        history = main.optimization_history(5, user)
+        detail  = main.optimization_history_detail(history[0].id, user)
+        self.assertEqual(detail.request.travel_mode, "walking")
+
+    # ------------------------------------------------------------------
+    # Cross-user data isolation
+    # ------------------------------------------------------------------
+
+    def test_scenario_cannot_be_read_by_a_different_user(self) -> None:
+        user_a = self.make_user("iso-sc-a")
+        user_b = self.make_user("iso-sc-b")
+        route  = self.make_route()
+
+        scenario = main.create_or_update_scenario(
+            ScenarioCreateRequest(name="Private", route=route),
+            DummyRequest("iso-sc-a"),
+            user_a,
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.read_scenario(scenario.id, user_b)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+        # User B's own list must be empty
+        self.assertEqual(len(main.get_saved_scenarios(user_b)), 0)
+
+    def test_history_cannot_be_read_by_a_different_user(self) -> None:
+        user_a = self.make_user("iso-hi-a")
+        user_b = self.make_user("iso-hi-b")
+        route  = self.make_route()
+
+        main.optimize_route(route, DummyRequest("iso-hi-a"), None, user_a)
+        runs_a = main.optimization_history(10, user_a)
+        self.assertEqual(len(runs_a), 1)
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.optimization_history_detail(runs_a[0].id, user_b)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+        # User B's own history must be empty
+        self.assertEqual(len(main.optimization_history(10, user_b)), 0)
+
 
 class HttpAuthFlowTests(unittest.TestCase):
     """
