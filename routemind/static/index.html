@@ -3012,7 +3012,7 @@
                     country: selectedCountry.name
                 });
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions yet; keep the typed street and press Geocode.</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions found. You can continue typing or manually enter the full address.</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -3082,7 +3082,7 @@
                 });
 
                 if (!results.length) {
-                    setDepotStatus(false, '⚠️ Address not found. Autocomplete is optional; edit the full address or try city + street only.');
+                    setDepotStatus(false, '⚠️ Address not found. Try entering just the city and street, or verify the spelling.');
                     return;
                 }
 
@@ -3180,7 +3180,7 @@
                     country: selectedCountry.name
                 });
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions yet; keep the typed street and press Geocode.</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions found. You can continue typing or manually enter the full address.</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -3256,7 +3256,7 @@
                 });
 
                 if (!results.length) {
-                    setStopStatus(idx, false, '⚠️ Address not found. Autocomplete is optional; edit the full address or try city + street only.');
+                    setStopStatus(idx, false, '⚠️ Address not found. Try entering just the city and street, or verify the spelling.');
                     return;
                 }
 

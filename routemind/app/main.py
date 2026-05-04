@@ -284,16 +284,20 @@ def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
         return False
     searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
     query_parts = _normalize_place_text(query).split()
-    non_numeric_parts = [part for part in query_parts if not part.isdigit()]
+    word_parts = [part for part in query_parts if not part.isdigit()]
     # House numbers are useful for the external geocoder but too specific for
     # the small offline fallback list; keep numeric road names such as Route 66.
-    if len(non_numeric_parts) >= 2:
-        query_parts = non_numeric_parts
+    if len(word_parts) >= 2:
+        query_parts = word_parts
     return all(part in searchable for part in query_parts)
 
 
 def _normalize_place_text(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else " " for char in value)
+
+
+def _address_street_line(street: str | None, house_number: str | None) -> str:
+    return " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
 
 
 def _build_address_query(
@@ -303,7 +307,7 @@ def _build_address_query(
     country: str | None,
     house_number: str | None,
 ) -> str:
-    street_line = " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
+    street_line = _address_street_line(street, house_number)
     structured_query = ", ".join(part.strip() for part in [street_line, city or "", country or ""] if part and part.strip())
     return structured_query or (q or "").strip()
 
@@ -323,7 +327,7 @@ def _fetch_nominatim_results(
         "limit": str(limit),
         "accept-language": "en",
     }
-    street_line = " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
+    street_line = _address_street_line(street, house_number)
     if city or street_line:
         if street_line:
             params["street"] = street_line
