@@ -2377,7 +2377,7 @@
                     </div>
                     <div class="stacked-actions">
                         <div class="result-toolbar">
-                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Israel Demo</button>
+                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Demo Route</button>
                             <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
                         </div>
                     </div>
@@ -2564,26 +2564,27 @@
             { code: 'ae', flag: '🇦🇪', name: 'UAE' },
         ];
 
-        // Israeli demo route: Netanya → Ra'anana → Hadera → Caesarea
-        // All coordinates are real geocoded locations in the Netanya-Hadera coastal corridor.
+        // Global demo route: London, United Kingdom
+        // King's Cross → Tower Bridge → Hyde Park → Canary Wharf
+        // Real geocoded coordinates; fully covered by Nominatim and OSRM worldwide routing.
         const SAMPLE_MAP_PAYLOAD = {
             depot: {
-                x: 34.8600, y: 32.3328, lat: 32.3328, lng: 34.8600,
-                label: 'Netanya City Center, Netanya, Israel',
-                city: 'Netanya', country: 'il', street: 'Kikar Ha\'Atzmaut', house_number: ''
+                x: -0.1238, y: 51.5308, lat: 51.5308, lng: -0.1238,
+                label: "King's Cross Station, London, United Kingdom",
+                city: 'London', country: 'gb', street: "King's Cross", house_number: ''
             },
             stops: [
-                { id: 1, x: 34.8706, y: 32.1840, lat: 32.1840, lng: 34.8706,
-                  label: 'Ra\'anana, Israel',
-                  city: 'Ra\'anana', country: 'il', street: 'Ahuza Street', house_number: '',
+                { id: 1, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754,
+                  label: 'Tower Bridge, London, United Kingdom',
+                  city: 'London', country: 'gb', street: 'Tower Bridge Road', house_number: '',
                   window_start: 0, window_end: 300, service_time: 15, priority: 3 },
-                { id: 2, x: 34.9175, y: 32.4347, lat: 32.4347, lng: 34.9175,
-                  label: 'Hadera Train Station, Hadera, Israel',
-                  city: 'Hadera', country: 'il', street: 'HaTahanah Street', house_number: '',
+                { id: 2, x: -0.1528, y: 51.5027, lat: 51.5027, lng: -0.1528,
+                  label: 'Hyde Park Corner, London, United Kingdom',
+                  city: 'London', country: 'gb', street: 'Hyde Park Corner', house_number: '',
                   window_start: 0, window_end: 300, service_time: 15, priority: 4 },
-                { id: 3, x: 34.9028, y: 32.5058, lat: 32.5058, lng: 34.9028,
-                  label: 'Caesarea Industrial Park, Caesarea, Israel',
-                  city: 'Caesarea', country: 'il', street: 'HaNammal Street', house_number: '',
+                { id: 3, x: -0.0235, y: 51.5054, lat: 51.5054, lng: -0.0235,
+                  label: 'Canary Wharf, London, United Kingdom',
+                  city: 'London', country: 'gb', street: 'Canary Wharf', house_number: '',
                   window_start: 0, window_end: 300, service_time: 15, priority: 2 },
             ],
             max_shift_time: 300,
@@ -3894,12 +3895,12 @@
 
         function loadMapDemo() {
             applyRoutePayload(SAMPLE_MAP_PAYLOAD);
-            // Restore country context to Israel
-            selectedCountry = { code: 'il', flag: '🇮🇱', name: 'Israel' };
+            // Set country context to match the demo stops (United Kingdom)
+            selectedCountry = { code: 'gb', flag: '🇬🇧', name: 'United Kingdom' };
             updateCountryBadge();
             currentScenarioId = null;
-            document.getElementById('scenarioName').value = 'Israel demo – Netanya region';
-            showMessage('success', 'Israel demo loaded (Netanya → Ra\'anana → Hadera → Caesarea). Click Optimize Route to see the live road map!');
+            document.getElementById('scenarioName').value = 'London demo route';
+            showMessage('success', "Demo loaded (King's Cross → Tower Bridge → Hyde Park → Canary Wharf, London). Click Optimize Route to see the live road map!");
         }
 
         function exportLatestResult() {
@@ -4079,10 +4080,10 @@
                 leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
             }
             mapEl.style.display = 'block';
-            // Trigger a forced reflow: reading getBoundingClientRect() forces the
-            // browser to synchronously compute the new layout, ensuring Leaflet reads
-            // the correct container dimensions instead of a stale 0×0 size.
-            void mapEl.getBoundingClientRect();
+            // Trigger a forced reflow so Leaflet reads the correct container
+            // dimensions instead of a stale 0×0 size. The return value is
+            // intentionally unused — the side-effect (layout computation) is all we need.
+            const _forceReflow = mapEl.getBoundingClientRect(); // eslint-disable-line no-unused-vars
             leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
             updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
         }

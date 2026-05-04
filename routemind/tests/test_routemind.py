@@ -399,27 +399,59 @@ class RouteMindTests(unittest.TestCase):
 
     # ------------------------------------------------------------------
     # Geo-based routes: realistic travel time & walking vs driving
+    # These tests use the internal Haversine-based TravelTimeProvider which
+    # is entirely country-agnostic — any real-world coordinates from any
+    # country produce valid, comparable results.
     # ------------------------------------------------------------------
 
-    def make_israel_route(self, travel_mode: str = "driving") -> RouteRequest:
-        """Route with real geocoded coordinates for Israeli cities.
+    def make_sample_route(self, travel_mode: str = "driving") -> RouteRequest:
+        """Route with real geocoded coordinates (London, UK).
 
-        Depot: Netanya city centre  (lat 32.33, lng 34.86)
-        Stop 1: Ra'anana            (lat 32.16, lng 34.84) — ~19 km south on Route 4
-        Stop 2: Hadera              (lat 32.44, lng 34.92) — ~13 km north-east on Highway 2
+        Depot: King's Cross Station  (lat 51.5308, lng -0.1238)
+        Stop 1: Tower Bridge         (lat 51.5055, lng -0.0754) — ~5 km south-east
+        Stop 2: Hyde Park Corner     (lat 51.5027, lng -0.1528) — ~5 km south-west
 
-        All coordinates are real; the route is the canonical example used to
+        All coordinates are real; this route is the canonical example used to
         verify that RouteMind produces realistic travel-time metrics.
+        The optimization engine is provider-agnostic and works for any country.
         """
         return RouteRequest(
-            depot=Depot(x=34.86, y=32.33, lat=32.33, lng=34.86),
+            depot=Depot(x=-0.1238, y=51.5308, lat=51.5308, lng=-0.1238),
             stops=[
                 Stop(
-                    id=1, x=34.84, y=32.16, lat=32.16, lng=34.84,
+                    id=1, x=-0.0754, y=51.5055, lat=51.5055, lng=-0.0754,
                     window_start=0, window_end=600, service_time=10, priority=3,
                 ),
                 Stop(
-                    id=2, x=34.92, y=32.44, lat=32.44, lng=34.92,
+                    id=2, x=-0.1528, y=51.5027, lat=51.5027, lng=-0.1528,
+                    window_start=0, window_end=600, service_time=10, priority=2,
+                ),
+            ],
+            max_shift_time=480,
+            weights=Weights(w_dist=1.0, w_wait=0.5, w_late=3.0, w_priority=2.0, w_shift=4.0),
+            optimization=OptimizationConfig(algorithm="2opt", max_iterations=50, no_improvement_limit=10),
+            travel_mode=travel_mode,
+        )
+
+    def make_us_route(self, travel_mode: str = "driving") -> RouteRequest:
+        """Route with real geocoded coordinates in New York City, USA.
+
+        Depot: Penn Station         (lat 40.7504, lng -73.9935)
+        Stop 1: Times Square        (lat 40.7580, lng -73.9855) — ~1 km north-east
+        Stop 2: Grand Central       (lat 40.7527, lng -73.9772) — ~1.5 km east
+
+        Used to verify the optimization engine works identically for
+        non-European coordinate ranges (negative/smaller lat values).
+        """
+        return RouteRequest(
+            depot=Depot(x=-73.9935, y=40.7504, lat=40.7504, lng=-73.9935),
+            stops=[
+                Stop(
+                    id=1, x=-73.9855, y=40.7580, lat=40.7580, lng=-73.9855,
+                    window_start=0, window_end=600, service_time=10, priority=3,
+                ),
+                Stop(
+                    id=2, x=-73.9772, y=40.7527, lat=40.7527, lng=-73.9772,
                     window_start=0, window_end=600, service_time=10, priority=2,
                 ),
             ],
@@ -430,18 +462,29 @@ class RouteMindTests(unittest.TestCase):
         )
 
     def test_geo_route_driving_produces_realistic_travel_time(self) -> None:
-        """Netanya → Ra'anana + Ra'anana → Hadera + return should be
-        roughly 60–65 km at 50 km/h ≈ 75–80 min driving, well under the
-        480-minute shift window.
+        """King's Cross → Tower Bridge + Tower Bridge → Hyde Park + return
+        spans roughly 15–20 km; at 50 km/h that is ~20–25 min driving,
+        well under the 480-minute shift window.
         """
         user = self.make_user("geo-driving")
-        result = main.optimize_route(self.make_israel_route("driving"), DummyRequest("geo-driving"), None, user)
+        result = main.optimize_route(self.make_sample_route("driving"), DummyRequest("geo-driving"), None, user)
 
-        # The three legs together span ~65 km; at 50 km/h that is ~78 min.
-        # Allow a generous band to account for the optimiser choosing different
-        # orderings (longest possible round-trip is still well under 180 min).
-        self.assertGreater(result.total_travel_time, 30.0)
-        self.assertLess(result.total_travel_time, 180.0)
+        # The three legs span ~15–20 km at 50 km/h ≈ 18–24 min.
+        # Allow a generous band to account for different orderings.
+        self.assertGreater(result.total_travel_time, 5.0)
+        self.assertLess(result.total_travel_time, 120.0)
+        self.assertTrue(result.feasible)
+
+    def test_geo_route_us_coordinates_produce_realistic_travel_time(self) -> None:
+        """Optimization engine works for US (NYC) coordinates exactly like
+        any other region — the internal Haversine formula is fully global.
+        """
+        user = self.make_user("geo-us")
+        result = main.optimize_route(self.make_us_route("driving"), DummyRequest("geo-us"), None, user)
+
+        # NYC stops are ~1–2 km apart; at 50 km/h ≈ 1–4 min per leg.
+        self.assertGreater(result.total_travel_time, 0.5)
+        self.assertLess(result.total_travel_time, 60.0)
         self.assertTrue(result.feasible)
 
     def test_walking_travel_time_is_ten_times_driving(self) -> None:
@@ -451,10 +494,10 @@ class RouteMindTests(unittest.TestCase):
         user = self.make_user("mode-ratio")
 
         driving_result = main.optimize_route(
-            self.make_israel_route("driving"), DummyRequest("mode-ratio"), None, user
+            self.make_sample_route("driving"), DummyRequest("mode-ratio"), None, user
         )
         walking_result = main.optimize_route(
-            self.make_israel_route("walking"), DummyRequest("mode-ratio"), None, user
+            self.make_sample_route("walking"), DummyRequest("mode-ratio"), None, user
         )
 
         self.assertGreater(walking_result.total_travel_time, driving_result.total_travel_time)
@@ -465,7 +508,7 @@ class RouteMindTests(unittest.TestCase):
     def test_travel_mode_is_persisted_in_history(self) -> None:
         """travel_mode must survive the JSON round-trip into optimization_runs."""
         user = self.make_user("mode-history")
-        main.optimize_route(self.make_israel_route("walking"), DummyRequest("mode-history"), None, user)
+        main.optimize_route(self.make_sample_route("walking"), DummyRequest("mode-history"), None, user)
 
         history = main.optimization_history(5, user)
         detail  = main.optimization_history_detail(history[0].id, user)
