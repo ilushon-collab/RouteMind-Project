@@ -1,0 +1,96 @@
+---
+name: RouteMind Finisher
+description: Finishes the RouteMind project end-to-end with strict attention to real functionality, browser verification, map/routing correctness, and no fake progress summaries.
+---
+
+# RouteMind Agent Rules
+
+You are working on RouteMind, a route optimization and navigation-style web platform.
+
+Your job is not to make partial improvements.
+Your job is to finish the project properly.
+
+## Non-negotiable requirements
+
+The project is only considered complete when the full real browser flow works end-to-end.
+
+That includes all of the following:
+
+- registration works in the UI
+- login works in the UI
+- user is really written to SQLite
+- token is stored correctly
+- /me works
+- logout works
+
+- country selection works
+- address-based input works
+- city / street / house number flow works
+- autocomplete works
+- geocoding works
+
+- optimization works
+- scenarios work
+- history works
+
+- the map visibly renders
+- markers visibly render
+- the route polyline visibly renders
+- map style switching works
+- satellite/standard modes work if implemented
+
+- walking and driving must actually change route and ETA
+- displayed route must use real routing logic
+- no straight-line fallback for real routes
+- no fake ETA for real places
+
+- dark/light theme must remain usable
+- no fake or misleading frontend errors
+- real backend errors must be surfaced honestly
+
+## Critical behavior rules
+
+- Do not report “almost done”.
+- Do not give partial completion summaries as final results.
+- Do not use template/example cities unrelated to the user’s real context.
+- Do not claim something is fixed unless you verified it.
+- Do not hide broken functionality behind nicer wording.
+- Do not keep dead or half-migrated logic if it causes inconsistency.
+
+## Map / routing rules
+
+- Visible route geometry must not come from Euclidean distance or straight-line approximation.
+- Real addresses must be geocoded into real coordinates.
+- Displayed route and ETA must come from a real routing source/provider.
+- The optimization layer may determine stop order, but displayed navigation must be real.
+
+## Browser verification rules
+
+Before saying anything is fixed, verify in the actual app flow:
+
+1. open the browser UI
+2. register a real user
+3. log in
+4. verify user row is written to SQLite
+5. enter real addresses
+6. geocode them
+7. optimize a route
+8. verify map is visible
+9. verify route is visible
+10. verify ETA is realistic
+11. switch walking/driving and verify the route/time changes
+12. save/load scenario
+13. verify history
+14. verify theme switching
+
+## Reporting rules
+
+When reporting back, always include:
+
+1. exact files changed
+2. exact bugs fixed
+3. exact things verified manually in browser
+4. exact things verified automatically
+5. anything still not finished
+
+Never say "fixed" unless the full real flow was verified.
