@@ -1,5 +1,4 @@
 import logging
-import math
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -28,6 +27,7 @@ from app.models import (
     OptimizationHistorySummary,
     RegisterRequest,
     RoadRouteRequest,
+    RoadWaypoint,
     RouteRequest,
     RouteResponse,
     ScenarioCreateRequest,
@@ -52,7 +52,7 @@ from app.storage import (
     record_optimization_run,
     save_scenario,
 )
-from app.utils import EARTH_RADIUS_KM, build_distance_matrix
+from app.utils import HaversineDistanceProvider, build_distance_matrix
 
 
 logging.basicConfig(
@@ -72,6 +72,7 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="RouteMind API", version="3.0", lifespan=lifespan)
 bearer_scheme = HTTPBearer(auto_error=False)
 rate_limiter = InMemoryRateLimiter()
+haversine_provider = HaversineDistanceProvider()
 
 app.add_middleware(
     CORSMiddleware,
@@ -254,14 +255,10 @@ def _normalize_place_text(value: str) -> str:
 
 
 def _haversine_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
-    phi1, phi2 = math.radians(a_lat), math.radians(b_lat)
-    dphi = math.radians(b_lat - a_lat)
-    dlambda = math.radians(b_lng - a_lng)
-    half_chord_squared = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return haversine_provider.distance(
+        RoadWaypoint(lat=a_lat, lng=a_lng),
+        RoadWaypoint(lat=b_lat, lng=b_lng),
     )
-    return EARTH_RADIUS_KM * 2 * math.atan2(math.sqrt(half_chord_squared), math.sqrt(1 - half_chord_squared))
 
 
 def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> list[list[float]]:
@@ -324,7 +321,7 @@ def local_road_route(payload: RoadRouteRequest) -> dict:
                 "distance": distance_m,
                 "steps": [
                     {
-                        "name": "local road network",
+                        "name": f"route segment {idx + 1}",
                         "distance": distance_m,
                         "duration": duration_s,
                         "maneuver": {"type": "continue", "modifier": "straight"},
