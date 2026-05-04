@@ -67,7 +67,10 @@ logging.basicConfig(
 logger = logging.getLogger("routemind")
 NOMINATIM_SEARCH_URL = os.getenv("ROUTEMIND_NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
 NOMINATIM_USER_AGENT = os.getenv("ROUTEMIND_NOMINATIM_USER_AGENT", "RouteMind/3.0 address search")
-NOMINATIM_TIMEOUT_SECONDS = float(os.getenv("ROUTEMIND_NOMINATIM_TIMEOUT_SECONDS", "4"))
+try:
+    NOMINATIM_TIMEOUT_SECONDS = float(os.getenv("ROUTEMIND_NOMINATIM_TIMEOUT_SECONDS", "4"))
+except ValueError as exc:
+    raise RuntimeError("ROUTEMIND_NOMINATIM_TIMEOUT_SECONDS must be a number of seconds.") from exc
 
 
 @asynccontextmanager
@@ -282,6 +285,8 @@ def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
     searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
     query_parts = _normalize_place_text(query).split()
     non_numeric_parts = [part for part in query_parts if not part.isdigit()]
+    # House numbers are useful for the external geocoder but too specific for
+    # the small offline fallback list; keep numeric road names such as Route 66.
     if len(non_numeric_parts) >= 2:
         query_parts = non_numeric_parts
     return all(part in searchable for part in query_parts)
@@ -318,9 +323,10 @@ def _fetch_nominatim_results(
         "limit": str(limit),
         "accept-language": "en",
     }
-    if city or street or house_number:
-        if street or house_number:
-            params["street"] = " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
+    street_line = " ".join(part.strip() for part in [house_number or "", street or ""] if part and part.strip())
+    if city or street_line:
+        if street_line:
+            params["street"] = street_line
         if city:
             params["city"] = city
         if country:
