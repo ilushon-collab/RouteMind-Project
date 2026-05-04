@@ -73,6 +73,11 @@ app = FastAPI(title="RouteMind API", version="3.0", lifespan=lifespan)
 bearer_scheme = HTTPBearer(auto_error=False)
 rate_limiter = InMemoryRateLimiter()
 haversine_provider = HaversineDistanceProvider()
+# Route-bend constants are coordinate-degree deltas used only for drawing the
+# browser polyline; timing/distance still come from geographic distance.
+MIN_ROUTE_BEND_DELTA = 0.002
+MAX_ROUTE_BEND_DELTA = 0.02
+ROUTE_BEND_SCALE = 0.18
 
 app.add_middleware(
     CORSMiddleware,
@@ -254,7 +259,7 @@ def _normalize_place_text(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else " " for char in value)
 
 
-def _haversine_distance_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+def _calculate_distance_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
     return haversine_provider.distance(
         RoadWaypoint(lat=a_lat, lng=a_lng),
         RoadWaypoint(lat=b_lat, lng=b_lng),
@@ -269,7 +274,7 @@ def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> l
     coordinate_delta = abs(end_lat - start_lat) + abs(end_lng - start_lng)
     # Keep curvature visible on short city trips while capping it so longer
     # routes do not arc unrealistically far away from their endpoints.
-    bend = min(max(coordinate_delta, 0.002), 0.02) * 0.18
+    bend = min(max(coordinate_delta, MIN_ROUTE_BEND_DELTA), MAX_ROUTE_BEND_DELTA) * ROUTE_BEND_SCALE
     return [
         [start_lat, start_lng],
         [start_lat + (mid_lat - start_lat) * 0.8, mid_lng - bend],
@@ -311,7 +316,7 @@ def local_road_route(payload: RoadRouteRequest) -> dict:
     total_duration = 0.0
 
     for idx, (start, end) in enumerate(zip(payload.waypoints, payload.waypoints[1:])):
-        km = _haversine_distance_km(start.lat, start.lng, end.lat, end.lng) * road_factor
+        km = _calculate_distance_km(start.lat, start.lng, end.lat, end.lng) * road_factor
         distance_m = km * 1000
         duration_s = (km / speed_kmh) * 3600
         segment_points = _segment_geometry((start.lat, start.lng), (end.lat, end.lng))

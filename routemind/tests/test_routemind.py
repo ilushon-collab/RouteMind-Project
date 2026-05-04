@@ -513,6 +513,7 @@ class RouteMindTests(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].address["city"], "London")
         self.assertAlmostEqual(results[0].lat, 51.5055, places=4)
+        self.assertAlmostEqual(results[0].lon, -0.0754, places=4)
 
     def test_local_road_route_mode_changes_eta(self) -> None:
         waypoints = [

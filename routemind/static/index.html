@@ -4331,9 +4331,8 @@
             const markerLayer = mapEl.querySelector('.rm-marker-layer');
             if (!svg || !markerLayer) return;
 
-            const allPoints = [...routeLatLngs.map(([lat, lng]) => ({ lat, lng })), ...waypoints];
-            const lats = allPoints.map(p => p.lat);
-            const lngs = allPoints.map(p => p.lng);
+            const lats = [...routeLatLngs.map(([lat]) => lat), ...waypoints.map(p => p.lat)];
+            const lngs = [...routeLatLngs.map(([, lng]) => lng), ...waypoints.map(p => p.lng)];
             let minLat = Math.min(...lats), maxLat = Math.max(...lats);
             let minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
             if (minLat === maxLat) { minLat -= 0.005; maxLat += 0.005; }
