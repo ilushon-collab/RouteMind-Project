@@ -284,11 +284,11 @@ def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
         return False
     searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
     query_parts = _normalize_place_text(query).split()
-    word_parts = [part for part in query_parts if not part.isdigit()]
+    text_only_parts = [part for part in query_parts if not part.isdigit()]
     # House numbers are useful for the external geocoder but too specific for
     # the small offline fallback list; keep numeric road names such as Route 66.
-    if len(word_parts) >= 2:
-        query_parts = word_parts
+    if len(text_only_parts) >= 2:
+        query_parts = text_only_parts
     return all(part in searchable for part in query_parts)
 
 
@@ -404,7 +404,7 @@ def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> l
 
 @app.get("/geocode/search", response_model=list[GeocodeResult])
 def local_geocode_search(
-    q: str | None = None,
+    q: str = Query(min_length=1),
     country_code: str | None = Query(default=None, min_length=2, max_length=2),
     limit: int = Query(default=6, ge=1, le=10),
     city: str | None = None,
