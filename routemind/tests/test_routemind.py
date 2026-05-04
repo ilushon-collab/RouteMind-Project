@@ -405,8 +405,8 @@ class RouteMindTests(unittest.TestCase):
         """Route with real geocoded coordinates for Israeli cities.
 
         Depot: Netanya city centre  (lat 32.33, lng 34.86)
-        Stop 1: Herzliya            (lat 32.16, lng 34.84) — ~19 km south
-        Stop 2: Hadera              (lat 32.44, lng 34.92) — ~13 km north-east
+        Stop 1: Ra'anana            (lat 32.16, lng 34.84) — ~19 km south on Route 4
+        Stop 2: Hadera              (lat 32.44, lng 34.92) — ~13 km north-east on Highway 2
 
         All coordinates are real; the route is the canonical example used to
         verify that RouteMind produces realistic travel-time metrics.

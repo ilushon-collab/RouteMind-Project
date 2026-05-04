@@ -1597,6 +1597,124 @@
             transition: border-color var(--theme-transition-duration) var(--theme-transition-curve);
         }
 
+        /* ---- Navigation Summary Panel ---- */
+        .nav-total-stats {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(190, 205, 220, 0.5);
+        }
+        .nav-stat { text-align: center; }
+        .nav-stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #14B8E6;
+            line-height: 1.1;
+        }
+        .nav-stat-label {
+            font-size: 11px;
+            color: #94A3B8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+        }
+        .nav-mode-badge {
+            background: rgba(20, 184, 230, 0.09);
+            color: #0891b2;
+            border: 1px solid rgba(20, 184, 230, 0.3);
+            padding: 4px 13px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        .nav-leg {
+            border: 1px solid #DDE5EC;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            transition: border-color 200ms;
+        }
+        .nav-leg-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 14px;
+            cursor: pointer;
+            background: rgba(248, 251, 253, 0.9);
+            user-select: none;
+            gap: 8px;
+        }
+        .nav-leg-header:hover { background: rgba(20, 184, 230, 0.06); }
+        .nav-leg-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            flex: 1;
+        }
+        .nav-leg-meta {
+            font-size: 12px;
+            color: #64748B;
+            white-space: nowrap;
+        }
+        .nav-leg-toggle {
+            font-size: 11px;
+            color: #94A3B8;
+            transition: transform 200ms;
+            line-height: 1;
+        }
+        .nav-leg-toggle.open { transform: rotate(180deg); }
+        .nav-steps {
+            display: none;
+            padding: 4px 14px 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #fff;
+        }
+        .nav-steps.open { display: block; }
+        .nav-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(220, 230, 240, 0.55);
+        }
+        .nav-step:last-child { border-bottom: none; }
+        .nav-step-icon {
+            font-size: 15px;
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .nav-step-text { flex: 1; }
+        .nav-step-instruction {
+            font-size: 13px;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+        .nav-step-dist {
+            font-size: 11px;
+            color: #94A3B8;
+            margin-top: 1px;
+        }
+        /* Dark mode nav overrides */
+        body.dark-mode .nav-stat-value  { color: #38BDF8; }
+        body.dark-mode .nav-mode-badge  { background: rgba(56,189,248,0.12); color: #7dd3fc; border-color: rgba(56,189,248,0.3); }
+        body.dark-mode .nav-total-stats { border-color: rgba(71,85,105,0.45); }
+        body.dark-mode .nav-leg         { border-color: #334155; }
+        body.dark-mode .nav-leg-header  { background: rgba(30,41,59,0.7); }
+        body.dark-mode .nav-leg-header:hover { background: rgba(56,189,248,0.08); }
+        body.dark-mode .nav-leg-title   { color: #e2e8f0; }
+        body.dark-mode .nav-leg-meta    { color: #94A3B8; }
+        body.dark-mode .nav-steps       { background: #0f172a; }
+        body.dark-mode .nav-step        { border-color: rgba(51,65,85,0.5); }
+        body.dark-mode .nav-step-instruction { color: #e2e8f0; }
+
         /* Map error / warning banner */
         .map-error-msg {
             background: rgba(234, 88, 12, 0.08);
@@ -2259,7 +2377,7 @@
                     </div>
                     <div class="stacked-actions">
                         <div class="result-toolbar">
-                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load London Demo</button>
+                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Israel Demo</button>
                             <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
                         </div>
                     </div>
@@ -2376,6 +2494,18 @@
                         <!-- Routing error / fallback notice -->
                         <div class="map-error-msg" id="mapError" style="display:none;"></div>
                     </div>
+
+                    <!-- Road Navigation Summary & Turn-by-Turn Directions -->
+                    <div class="card" id="navSummaryCard" style="display:none;">
+                        <div class="card-title">
+                            <span class="card-title-icon">🧭</span>
+                            Road Navigation
+                        </div>
+                        <!-- OSRM total duration + distance -->
+                        <div id="navSummary"></div>
+                        <!-- Per-leg collapsible step list -->
+                        <div id="navLegs"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2434,32 +2564,30 @@
             { code: 'ae', flag: '🇦🇪', name: 'UAE' },
         ];
 
-        // London landmarks demo (always has geocoords so Leaflet map always shows)
+        // Israeli demo route: Netanya → Ra'anana → Hadera → Caesarea
+        // All coordinates are real geocoded locations in the Netanya-Hadera coastal corridor.
         const SAMPLE_MAP_PAYLOAD = {
             depot: {
-                x: -0.1246, y: 51.5007, lat: 51.5007, lng: -0.1246,
-                label: 'Westminster Bridge, London, England',
-                city: 'London', country: 'gb', street: 'Westminster Bridge', house_number: ''
+                x: 34.8600, y: 32.3328, lat: 32.3328, lng: 34.8600,
+                label: 'Netanya City Center, Netanya, Israel',
+                city: 'Netanya', country: 'il', street: 'Kikar Ha\'Atzmaut', house_number: ''
             },
             stops: [
-                { id: 1, x: -0.1419, y: 51.5014, lat: 51.5014, lng: -0.1419,
-                  label: 'Buckingham Palace, London', city: 'London', country: 'gb',
-                  street: 'Buckingham Palace Road', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 3 },
-                { id: 2, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754,
-                  label: 'Tower of London, EC3N 4AB', city: 'London', country: 'gb',
-                  street: 'Tower Hill', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 5 },
-                { id: 3, x: -0.0994, y: 51.5076, lat: 51.5076, lng: -0.0994,
-                  label: 'St Paul\'s Cathedral, London', city: 'London', country: 'gb',
-                  street: 'St Paul\'s Churchyard', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 2 },
-                { id: 4, x: -0.1195, y: 51.5033, lat: 51.5033, lng: -0.1195,
-                  label: 'Tate Modern, Bankside, London', city: 'London', country: 'gb',
-                  street: 'Bankside', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 4 },
+                { id: 1, x: 34.8706, y: 32.1840, lat: 32.1840, lng: 34.8706,
+                  label: 'Ra\'anana, Israel',
+                  city: 'Ra\'anana', country: 'il', street: 'Ahuza Street', house_number: '',
+                  window_start: 0, window_end: 300, service_time: 15, priority: 3 },
+                { id: 2, x: 34.9175, y: 32.4347, lat: 32.4347, lng: 34.9175,
+                  label: 'Hadera Train Station, Hadera, Israel',
+                  city: 'Hadera', country: 'il', street: 'HaTahanah Street', house_number: '',
+                  window_start: 0, window_end: 300, service_time: 15, priority: 4 },
+                { id: 3, x: 34.9028, y: 32.5058, lat: 32.5058, lng: 34.9028,
+                  label: 'Caesarea Industrial Park, Caesarea, Israel',
+                  city: 'Caesarea', country: 'il', street: 'HaNammal Street', house_number: '',
+                  window_start: 0, window_end: 300, service_time: 15, priority: 2 },
             ],
-            max_shift_time: 60,
+            max_shift_time: 300,
+            travel_mode: 'driving',
             weights: { w_dist: 1, w_wait: 0.5, w_late: 3, w_priority: 2, w_shift: 4 },
             optimization: { algorithm: '2opt', max_iterations: 250, no_improvement_limit: 40, time_limit: null }
         };
@@ -3766,12 +3894,12 @@
 
         function loadMapDemo() {
             applyRoutePayload(SAMPLE_MAP_PAYLOAD);
-            // Restore country context to UK
-            selectedCountry = { code: 'gb', flag: '🇬🇧', name: 'United Kingdom' };
+            // Restore country context to Israel
+            selectedCountry = { code: 'il', flag: '🇮🇱', name: 'Israel' };
             updateCountryBadge();
             currentScenarioId = null;
-            document.getElementById('scenarioName').value = 'London map demo';
-            showMessage('success', 'London map demo loaded. Click Optimize Route to see the real map!');
+            document.getElementById('scenarioName').value = 'Israel demo – Netanya region';
+            showMessage('success', 'Israel demo loaded (Netanya → Ra\'anana → Hadera → Caesarea). Click Optimize Route to see the live road map!');
         }
 
         function exportLatestResult() {
@@ -3941,6 +4069,7 @@
             document.getElementById('routeMap').style.display      = 'none';
             document.getElementById('mapControls').style.display   = 'none';
             document.getElementById('mapError').style.display      = 'none';
+            clearNavigationPanel();
         }
 
         function initLeafletMap(centerLat, centerLng, zoom) {
@@ -3986,12 +4115,206 @@
         async function fetchOSRMRoute(waypoints, mode, signal) {
             const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
             const coords  = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
-            const resp    = await fetch(`${service}/${coords}?overview=full&geometries=geojson`, { signal });
+            const resp    = await fetch(
+                `${service}/${coords}?overview=full&geometries=geojson&steps=true`,
+                { signal }
+            );
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
-            if (!data.routes || data.routes.length === 0) throw new Error('OSRM routing returned no valid routes — the waypoints may be too far apart or the selected travel mode may not support this route');
-            return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+            if (!data.routes || data.routes.length === 0)
+                throw new Error('OSRM routing returned no valid routes — the waypoints may be too far apart or the selected travel mode may not support this route');
+            const route = data.routes[0];
+            return {
+                latLngs:  route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+                duration: route.duration,   // total seconds
+                distance: route.distance,   // total metres
+                legs:     route.legs        // per-leg step data
+            };
+        }
+
+        /* ============================================================
+         *  NAVIGATION HELPERS — format OSRM data into human-readable UI
+         * ============================================================ */
+
+        function formatNavDuration(seconds) {
+            if (!isFinite(seconds) || seconds < 0) return '—';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.round((seconds % 3600) / 60);
+            if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+            return `${m} min`;
+        }
+
+        function formatNavDistance(metres) {
+            if (!isFinite(metres) || metres < 0) return '—';
+            if (metres < 1000) return `${Math.round(metres)} m`;
+            return `${(metres / 1000).toFixed(1)} km`;
+        }
+
+        // Returns a directional symbol for an OSRM maneuver
+        function getManeuverArrow(type, modifier) {
+            if (type === 'arrive')   return '🏁';
+            if (type === 'depart')   return '🚀';
+            if (type === 'roundabout' || type === 'rotary') return '🔄';
+            if (type === 'on ramp')  return '↗';
+            if (type === 'off ramp') return '↘';
+            if (type === 'fork') {
+                if (modifier === 'left')  return '↖';
+                if (modifier === 'right') return '↗';
+                return '↑';
+            }
+            const arrows = {
+                'left':         '↰',
+                'right':        '↱',
+                'slight left':  '↖',
+                'slight right': '↗',
+                'sharp left':   '↩',
+                'sharp right':  '↪',
+                'straight':     '↑',
+                'uturn':        '↩',
+            };
+            return arrows[modifier] || '↑';
+        }
+
+        // Builds a short human-readable instruction from a single OSRM step
+        function buildStepInstruction(step) {
+            const m    = step.maneuver || {};
+            const type = m.type     || '';
+            const mod  = m.modifier || '';
+            const road = step.name  ? ` onto ${step.name}` : '';
+
+            switch (type) {
+                case 'depart':
+                    return `Depart${road}`;
+                case 'arrive':
+                    return 'Arrive at destination';
+                case 'turn':
+                    switch (mod) {
+                        case 'left':         return `Turn left${road}`;
+                        case 'right':        return `Turn right${road}`;
+                        case 'slight left':  return `Keep slight left${road}`;
+                        case 'slight right': return `Keep slight right${road}`;
+                        case 'sharp left':   return `Make a sharp left${road}`;
+                        case 'sharp right':  return `Make a sharp right${road}`;
+                        case 'straight':     return `Continue straight${road}`;
+                        case 'uturn':        return `Make a U-turn`;
+                        default:             return `Turn${road}`;
+                    }
+                case 'new name':
+                case 'continue':
+                    return `Continue${road}`;
+                case 'merge':
+                    return `Merge${road}`;
+                case 'fork':
+                    if (mod === 'left')  return `Keep left at the fork${road}`;
+                    if (mod === 'right') return `Keep right at the fork${road}`;
+                    return `At the fork${road}`;
+                case 'end of road':
+                    if (mod === 'left')  return `Turn left at end of road${road}`;
+                    if (mod === 'right') return `Turn right at end of road${road}`;
+                    return `At end of road${road}`;
+                case 'on ramp':
+                    return `Take the on-ramp${road}`;
+                case 'off ramp':
+                    return `Take the exit${road}`;
+                case 'roundabout':
+                case 'rotary':
+                    return `Enter roundabout${road}`;
+                case 'exit roundabout':
+                case 'exit rotary':
+                    return `Exit roundabout${road}`;
+                case 'notification':
+                    return `Continue${road}`;
+                default:
+                    return `Continue${road || ' on route'}`;
+            }
+        }
+
+        // Builds waypoint labels: Depot → Stop 1 (label) → Stop 2 (label) → … → Depot
+        function buildWaypointLabels(orderedStops, depotLabel) {
+            const labels = [depotLabel];
+            orderedStops.forEach((s, i) => {
+                const name = s.label ? s.label.split(',')[0] : `Stop ${s.id}`;
+                labels.push(`${name}`);
+            });
+            labels.push(depotLabel);  // return to depot
+            return labels;
+        }
+
+        // Renders the navigation summary card: totals + per-leg collapsible step panels
+        function renderNavigationPanel(legs, totalDuration, totalDistance, mode, orderedStops, depotLabel) {
+            const card = document.getElementById('navSummaryCard');
+            card.style.display = 'block';
+
+            const modeLabel = (mode === 'walking') ? '🚶 Walking' : '🚗 Driving';
+            document.getElementById('navSummary').innerHTML = `
+                <div class="nav-total-stats">
+                    <div class="nav-stat">
+                        <div class="nav-stat-value">${formatNavDuration(totalDuration)}</div>
+                        <div class="nav-stat-label">Road ETA</div>
+                    </div>
+                    <div class="nav-stat">
+                        <div class="nav-stat-value">${formatNavDistance(totalDistance)}</div>
+                        <div class="nav-stat-label">Road Distance</div>
+                    </div>
+                    <div class="nav-mode-badge">${modeLabel}</div>
+                </div>
+            `;
+
+            const waypointLabels = buildWaypointLabels(orderedStops, depotLabel);
+            const legsHtml = (legs || []).map((leg, i) => {
+                const from = escapeHtml(waypointLabels[i]     || `Point ${i + 1}`);
+                const to   = escapeHtml(waypointLabels[i + 1] || `Point ${i + 2}`);
+                const legDur  = formatNavDuration(leg.duration);
+                const legDist = formatNavDistance(leg.distance);
+                const steps   = leg.steps || [];
+                const stepsHtml = steps.map(step => {
+                    const arrow  = getManeuverArrow(step.maneuver?.type, step.maneuver?.modifier);
+                    const instr  = escapeHtml(buildStepInstruction(step));
+                    const dist   = step.distance > 0 ? formatNavDistance(step.distance) : '';
+                    const durStr = step.duration > 0 ? formatNavDuration(step.duration) : '';
+                    const meta   = [dist, durStr].filter(Boolean).join(' · ');
+                    return `<div class="nav-step">
+                        <div class="nav-step-icon">${arrow}</div>
+                        <div class="nav-step-text">
+                            <div class="nav-step-instruction">${instr}</div>
+                            ${meta ? `<div class="nav-step-dist">${escapeHtml(meta)}</div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                const legId = `navLeg_${i}`;
+                return `
+                    <div class="nav-leg">
+                        <div class="nav-leg-header" onclick="toggleNavLeg('${legId}')">
+                            <div class="nav-leg-title">${from} → ${to}</div>
+                            <div class="nav-leg-meta">${legDur} · ${legDist}</div>
+                            <div class="nav-leg-toggle" id="${legId}_arrow">▼</div>
+                        </div>
+                        <div class="nav-steps" id="${legId}">
+                            ${stepsHtml || '<div style="padding:8px 0;color:#94A3B8;font-size:13px;">No step details available.</div>'}
+                        </div>
+                    </div>`;
+            }).join('');
+
+            document.getElementById('navLegs').innerHTML = legsHtml;
+        }
+
+        function toggleNavLeg(legId) {
+            const panel = document.getElementById(legId);
+            const arrow = document.getElementById(`${legId}_arrow`);
+            if (!panel) return;
+            const isOpen = panel.classList.toggle('open');
+            if (arrow) arrow.classList.toggle('open', isOpen);
+        }
+
+        function clearNavigationPanel() {
+            const card = document.getElementById('navSummaryCard');
+            if (card) card.style.display = 'none';
+            const summary = document.getElementById('navSummary');
+            if (summary) summary.innerHTML = '';
+            const legs = document.getElementById('navLegs');
+            if (legs) legs.innerHTML = '';
         }
 
         async function renderMapVisualization(result) {
@@ -4054,14 +4377,17 @@
             const { signal } = osrmAbortController;
 
             let routeLatLngs;
+            let osrmData = null;
             try {
-                routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode, signal);
+                osrmData = await fetchOSRMRoute(waypointsForRouting, mode, signal);
+                routeLatLngs = osrmData.latLngs;
                 mapError.style.display = 'none';
             } catch (err) {
                 if (err.name === 'AbortError') return;
                 routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
                 mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
                 mapError.style.display = 'block';
+                clearNavigationPanel();
             }
 
             if (!leafletMap) return;
@@ -4077,6 +4403,18 @@
             });
 
             leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+
+            // Render road-based navigation summary and turn-by-turn directions
+            if (osrmData) {
+                renderNavigationPanel(
+                    osrmData.legs,
+                    osrmData.duration,
+                    osrmData.distance,
+                    mode,
+                    orderedStops,
+                    depotLabel
+                );
+            }
         }
 
         function onMapStyleChange() {
