@@ -3523,6 +3523,18 @@
             };
             setDepotStatus(hasGeo, hasGeo ? `✅ ${depotLabel}` : `⚠️ ${depotLabel} (not geocoded)`);
 
+            // Restore the selected country from the payload so that subsequent geocoding
+            // and autocomplete searches use the correct country filter automatically.
+            const payloadCountryCode = d.country;
+            if (payloadCountryCode) {
+                const matchedCountry = COUNTRIES.find(c => c.code === payloadCountryCode);
+                if (matchedCountry) {
+                    selectedCountry = matchedCountry;
+                    localStorage.setItem(COUNTRY_STORAGE_KEY, JSON.stringify(selectedCountry));
+                    updateCountryBadge();
+                }
+            }
+
             // Stops
             stops = payload.stops.map(stop => {
                 const sg = areValidCoords(stop.lat, stop.lng);
