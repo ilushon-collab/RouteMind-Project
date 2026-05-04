@@ -254,7 +254,7 @@ def _normalize_place_text(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else " " for char in value)
 
 
-def _haversine_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+def _haversine_distance_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
     return haversine_provider.distance(
         RoadWaypoint(lat=a_lat, lng=a_lng),
         RoadWaypoint(lat=b_lat, lng=b_lng),
@@ -266,7 +266,10 @@ def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> l
     end_lat, end_lng = end
     mid_lat = (start_lat + end_lat) / 2
     mid_lng = (start_lng + end_lng) / 2
-    bend = min(max(abs(end_lat - start_lat) + abs(end_lng - start_lng), 0.002), 0.02) * 0.18
+    coordinate_delta = abs(end_lat - start_lat) + abs(end_lng - start_lng)
+    # Keep curvature visible on short city trips while capping it so longer
+    # routes do not arc unrealistically far away from their endpoints.
+    bend = min(max(coordinate_delta, 0.002), 0.02) * 0.18
     return [
         [start_lat, start_lng],
         [start_lat + (mid_lat - start_lat) * 0.8, mid_lng - bend],
@@ -308,7 +311,7 @@ def local_road_route(payload: RoadRouteRequest) -> dict:
     total_duration = 0.0
 
     for idx, (start, end) in enumerate(zip(payload.waypoints, payload.waypoints[1:])):
-        km = _haversine_km(start.lat, start.lng, end.lat, end.lng) * road_factor
+        km = _haversine_distance_km(start.lat, start.lng, end.lat, end.lng) * road_factor
         distance_m = km * 1000
         duration_s = (km / speed_kmh) * 3600
         segment_points = _segment_geometry((start.lat, start.lng), (end.lat, end.lng))
