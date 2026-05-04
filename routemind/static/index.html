@@ -4079,9 +4079,10 @@
                 leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
             }
             mapEl.style.display = 'block';
-            // Force the browser to compute the new layout before Leaflet reads
-            // the container dimensions, preventing a blank 0×0 map.
-            mapEl.getBoundingClientRect();
+            // Trigger a forced reflow: reading getBoundingClientRect() forces the
+            // browser to synchronously compute the new layout, ensuring Leaflet reads
+            // the correct container dimensions instead of a stale 0×0 size.
+            void mapEl.getBoundingClientRect();
             leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
             updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
         }
@@ -4112,9 +4113,11 @@
             setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 0);
         }
 
-        async function fetchOSRMRoute(waypoints, mode, signal) {
+        // Fetch one real road segment (A → B) from the routing provider.
+        // Returns { latLngs, duration, distance, leg } for that single segment.
+        async function fetchSegment(from, to, mode, signal) {
             const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
-            const coords  = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
+            const coords  = `${from.lng},${from.lat};${to.lng},${to.lat}`;
             const resp    = await fetch(
                 `${service}/${coords}?overview=full&geometries=geojson&steps=true`,
                 { signal }
@@ -4123,13 +4126,56 @@
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
             if (!data.routes || data.routes.length === 0)
-                throw new Error('OSRM routing returned no valid routes — the waypoints may be too far apart or the selected travel mode may not support this route');
+                throw new Error('No road route found for this segment — the points may be too far apart or inaccessible by the selected travel mode');
             const route = data.routes[0];
             return {
                 latLngs:  route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
-                duration: route.duration,   // total seconds
-                distance: route.distance,   // total metres
-                legs:     route.legs        // per-leg step data
+                duration: route.duration,   // seconds for this segment
+                distance: route.distance,   // metres for this segment
+                leg:      route.legs[0]     // OSRM always returns exactly 1 leg for a 2-point request
+            };
+        }
+
+        // Fetch every consecutive pair in `waypoints` as individual road segments,
+        // then merge the results into a single route object.
+        // This satisfies the requirement: one real routing request per segment.
+        async function fetchOSRMRoute(waypoints, mode, signal) {
+            if (waypoints.length < 2)
+                throw new Error('Need at least 2 waypoints to build a route');
+
+            // Fetch each segment sequentially to be a polite consumer of
+            // the public routing service and to surface per-segment errors clearly.
+            const segments = [];
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                // Re-check abort before each request so stale requests stop early
+                if (signal && signal.aborted) throw new DOMException('Routing aborted', 'AbortError');
+                const seg = await fetchSegment(waypoints[i], waypoints[i + 1], mode, signal);
+                segments.push(seg);
+            }
+
+            // Merge: concatenate latLngs deduplicating shared junction points,
+            // sum durations and distances, collect one leg per segment.
+            const mergedLatLngs = [];
+            let totalDuration   = 0;
+            let totalDistance   = 0;
+            const mergedLegs    = [];
+
+            for (let i = 0; i < segments.length; i++) {
+                const seg = segments[i];
+                // Skip the first point of each segment after the first — it is
+                // identical to the last point of the previous segment.
+                const lls = i === 0 ? seg.latLngs : seg.latLngs.slice(1);
+                mergedLatLngs.push(...lls);
+                totalDuration += seg.duration;
+                totalDistance += seg.distance;
+                mergedLegs.push(seg.leg);
+            }
+
+            return {
+                latLngs:  mergedLatLngs,
+                duration: totalDuration,
+                distance: totalDistance,
+                legs:     mergedLegs
             };
         }
 
@@ -4376,24 +4422,29 @@
             osrmAbortController = new AbortController();
             const { signal } = osrmAbortController;
 
-            let routeLatLngs;
             let osrmData = null;
             try {
                 osrmData = await fetchOSRMRoute(waypointsForRouting, mode, signal);
-                routeLatLngs = osrmData.latLngs;
                 mapError.style.display = 'none';
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
-                mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
+                // Do NOT fall back to straight-line geometry — that would produce
+                // fake routes that contradict real road distances and travel times.
+                // Show a clear error instead; markers are still rendered below.
+                mapError.textContent = `⚠️ Road routing unavailable: ${err.message}. Check your internet connection or try a different travel mode.`;
                 mapError.style.display = 'block';
                 clearNavigationPanel();
             }
 
             if (!leafletMap) return;
-            currentRouteLayer = L.polyline(routeLatLngs, {
-                color: '#14B8E6', weight: 4, opacity: 0.85, lineJoin: 'round'
-            }).addTo(leafletMap);
+
+            // Draw the road route polyline only when real OSRM data is available.
+            // Never draw straight-line geometry for real addresses.
+            if (osrmData) {
+                currentRouteLayer = L.polyline(osrmData.latLngs, {
+                    color: '#14B8E6', weight: 4, opacity: 0.85, lineJoin: 'round'
+                }).addTo(leafletMap);
+            }
 
             orderedStops.forEach((stop, idx) => {
                 const tooltip = stop.label ? stop.label.split(',')[0] : `Stop ${stop.id}`;
@@ -4402,7 +4453,13 @@
                     .addTo(currentMarkerGroup);
             });
 
-            leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+            // Fit the map to the road route when available; otherwise fit to all markers.
+            if (currentRouteLayer) {
+                leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+            } else {
+                const markerBounds = L.latLngBounds(waypointsForRouting.map(p => [p.lat, p.lng]));
+                leafletMap.fitBounds(markerBounds, { padding: [40, 40] });
+            }
 
             // Render road-based navigation summary and turn-by-turn directions
             if (osrmData) {

@@ -430,7 +430,7 @@ class RouteMindTests(unittest.TestCase):
         )
 
     def test_geo_route_driving_produces_realistic_travel_time(self) -> None:
-        """Netanya → Herzliya + Herzliya → Hadera + return should be
+        """Netanya → Ra'anana + Ra'anana → Hadera + return should be
         roughly 60–65 km at 50 km/h ≈ 75–80 min driving, well under the
         480-minute shift window.
         """
