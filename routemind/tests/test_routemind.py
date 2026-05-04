@@ -354,12 +354,12 @@ class HttpAuthFlowTests(unittest.TestCase):
         init_app_storage()
 
         # Reset in-memory rate limiter so unit-test registrations don't bleed over.
-        main.rate_limiter._buckets.clear()
+        main.rate_limiter.reset()
         cls.client = TestClient(main.app, raise_server_exceptions=False)
 
     def setUp(self) -> None:
         # Clear per-test so tests within this class don't exhaust each other's limits.
-        main.rate_limiter._buckets.clear()
+        main.rate_limiter.reset()
 
     def _unique(self) -> str:
         return uuid.uuid4().hex[:10]

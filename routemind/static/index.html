@@ -2612,8 +2612,6 @@
                     detail = data.detail;
                 } else if (Array.isArray(data.detail)) {
                     detail = data.detail.map(item => item.msg).filter(Boolean).join(' ');
-                } else if (data.detail !== undefined) {
-                    detail = `Unexpected server response (HTTP ${response.status}). Please try again.`;
                 }
             } catch (_) { /* ignore */ }
             return detail;

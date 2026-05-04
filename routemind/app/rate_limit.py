@@ -25,3 +25,6 @@ class InMemoryRateLimiter:
             )
 
         bucket.append(now)
+
+    def reset(self) -> None:
+        self._buckets.clear()
