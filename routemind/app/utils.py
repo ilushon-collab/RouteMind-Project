@@ -4,6 +4,8 @@ from typing import Protocol
 
 from app.models import Depot, Stop
 
+EARTH_RADIUS_KM = 6371.0
+
 
 class DistanceProvider(Protocol):
     def distance(self, a: Depot | Stop, b: Depot | Stop) -> float:
@@ -13,6 +15,50 @@ class DistanceProvider(Protocol):
 class EuclideanDistanceProvider:
     def distance(self, a: Depot | Stop, b: Depot | Stop) -> float:
         return math.hypot(a.x - b.x, a.y - b.y)
+
+
+class HaversineDistanceProvider:
+    """Returns the great-circle distance in kilometres between two geo points.
+
+    Falls back to the node's (x, y) pair treated as (lng, lat) when the
+    dedicated lat/lng fields are absent, which preserves backward-compatibility
+    with any data that was saved before the address-based input was introduced.
+    """
+
+    def distance(self, a: Depot | Stop, b: Depot | Stop) -> float:
+        lat1 = a.lat if a.lat is not None else a.y
+        lng1 = a.lng if a.lng is not None else a.x
+        lat2 = b.lat if b.lat is not None else b.y
+        lng2 = b.lng if b.lng is not None else b.x
+
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lng2 - lng1)
+        half_chord_squared = (
+            math.sin(dphi / 2) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        )
+        return EARTH_RADIUS_KM * 2 * math.atan2(math.sqrt(half_chord_squared), math.sqrt(1 - half_chord_squared))
+
+
+class TravelTimeProvider:
+    """Converts Haversine km distance to estimated travel time in **minutes**.
+
+    This makes the route evaluator produce time-based metrics that are
+    consistent with the max_shift_time field (which is also in minutes).
+    Average speeds are intentionally conservative to account for traffic and
+    non-straight road geometry.
+    """
+
+    SPEED_KMH: dict[str, float] = {"driving": 50.0, "walking": 5.0}
+
+    def __init__(self, mode: str = "driving") -> None:
+        self._speed_kmh = self.SPEED_KMH.get(mode, self.SPEED_KMH["driving"])
+        self._haversine = HaversineDistanceProvider()
+
+    def distance(self, a: Depot | Stop, b: Depot | Stop) -> float:
+        km = self._haversine.distance(a, b)
+        return km / self._speed_kmh * 60.0  # → minutes
 
 
 @dataclass(frozen=True)
@@ -29,12 +75,26 @@ def node_key(node: Depot | Stop) -> str:
     return "depot"
 
 
+def _has_geo_coords(node: Depot | Stop) -> bool:
+    """Return True when the node carries real geographic lat/lng coordinates."""
+    return node.lat is not None and node.lng is not None
+
+
 def build_distance_matrix(
     depot: Depot,
     stops: list[Stop],
     provider: DistanceProvider | None = None,
+    travel_mode: str = "driving",
 ) -> DistanceMatrix:
-    provider = provider or EuclideanDistanceProvider()
+    if provider is None:
+        # Automatically choose the appropriate provider: use real-world travel
+        # time (minutes) when geographic coordinates are present, otherwise fall
+        # back to dimensionless Euclidean distance for legacy abstract scenarios.
+        provider = (
+            TravelTimeProvider(mode=travel_mode)
+            if _has_geo_coords(depot)
+            else EuclideanDistanceProvider()
+        )
     nodes: list[Depot | Stop] = [depot, *stops]
     values: dict[str, dict[str, float]] = {}
 

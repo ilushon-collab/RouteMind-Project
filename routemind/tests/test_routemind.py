@@ -332,6 +332,226 @@ class RouteMindTests(unittest.TestCase):
 
         self.assertEqual(ctx.exception.status_code, 404)
 
+    # ------------------------------------------------------------------
+    # Window & service-time validators
+    # ------------------------------------------------------------------
+
+    def test_window_end_less_than_window_start_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            Stop(id=1, x=0, y=0, window_start=10, window_end=5, service_time=1, priority=1)
+
+    def test_service_time_negative_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            Stop(id=1, x=0, y=0, window_start=0, window_end=10, service_time=-1, priority=1)
+
+    # ------------------------------------------------------------------
+    # Scenario upsert
+    # ------------------------------------------------------------------
+
+    def test_scenario_with_same_name_is_updated_not_duplicated(self) -> None:
+        user = self.make_user("upsert-test")
+        route_3stops = self.make_route()
+        route_1stop = RouteRequest(
+            depot=Depot(x=0, y=0),
+            stops=[Stop(id=1, x=1, y=1, window_start=0, window_end=10, service_time=1, priority=1)],
+            max_shift_time=25,
+            weights=Weights(),
+        )
+
+        s1 = main.create_or_update_scenario(
+            ScenarioCreateRequest(name="My Route", route=route_3stops),
+            DummyRequest("upsert-test"),
+            user,
+        )
+        s2 = main.create_or_update_scenario(
+            ScenarioCreateRequest(name="My Route", route=route_1stop),
+            DummyRequest("upsert-test"),
+            user,
+        )
+
+        # Same record updated, not a new one inserted
+        self.assertEqual(s1.id, s2.id)
+        self.assertEqual(s2.stop_count, 1)
+        # Only one scenario in the list
+        self.assertEqual(len(main.get_saved_scenarios(user)), 1)
+
+    # ------------------------------------------------------------------
+    # Optimize rate-limit enforcement
+    # ------------------------------------------------------------------
+
+    def test_optimize_rate_limit_is_enforced(self) -> None:
+        user = self.make_user("opt-rl")
+        route = RouteRequest(
+            depot=Depot(x=0, y=0),
+            stops=[Stop(id=1, x=1, y=1, window_start=0, window_end=10, service_time=1, priority=1)],
+            max_shift_time=25,
+            weights=Weights(),
+            optimization=OptimizationConfig(max_iterations=5, no_improvement_limit=3),
+        )
+
+        for _ in range(30):
+            main.optimize_route(route, DummyRequest("opt-rl"), None, user)
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.optimize_route(route, DummyRequest("opt-rl"), None, user)
+
+        self.assertEqual(ctx.exception.status_code, 429)
+
+    # ------------------------------------------------------------------
+    # Geo-based routes: realistic travel time & walking vs driving
+    # These tests use the internal Haversine-based TravelTimeProvider which
+    # is entirely country-agnostic — any real-world coordinates from any
+    # country produce valid, comparable results.
+    # ------------------------------------------------------------------
+
+    def make_sample_route(self, travel_mode: str = "driving") -> RouteRequest:
+        """Route with real geocoded coordinates (London, UK).
+
+        Depot: King's Cross Station  (lat 51.5308, lng -0.1238)
+        Stop 1: Tower Bridge         (lat 51.5055, lng -0.0754) — ~5 km south-east
+        Stop 2: Hyde Park Corner     (lat 51.5027, lng -0.1528) — ~5 km south-west
+
+        All coordinates are real; this route is the canonical example used to
+        verify that RouteMind produces realistic travel-time metrics.
+        The optimization engine is provider-agnostic and works for any country.
+        """
+        return RouteRequest(
+            depot=Depot(x=-0.1238, y=51.5308, lat=51.5308, lng=-0.1238),
+            stops=[
+                Stop(
+                    id=1, x=-0.0754, y=51.5055, lat=51.5055, lng=-0.0754,
+                    window_start=0, window_end=600, service_time=10, priority=3,
+                ),
+                Stop(
+                    id=2, x=-0.1528, y=51.5027, lat=51.5027, lng=-0.1528,
+                    window_start=0, window_end=600, service_time=10, priority=2,
+                ),
+            ],
+            max_shift_time=480,
+            weights=Weights(w_dist=1.0, w_wait=0.5, w_late=3.0, w_priority=2.0, w_shift=4.0),
+            optimization=OptimizationConfig(algorithm="2opt", max_iterations=50, no_improvement_limit=10),
+            travel_mode=travel_mode,
+        )
+
+    def make_us_route(self, travel_mode: str = "driving") -> RouteRequest:
+        """Route with real geocoded coordinates in New York City, USA.
+
+        Depot: Penn Station         (lat 40.7504, lng -73.9935)
+        Stop 1: Times Square        (lat 40.7580, lng -73.9855) — ~1 km north-east
+        Stop 2: Grand Central       (lat 40.7527, lng -73.9772) — ~1.5 km east
+
+        Used to verify the optimization engine works identically for
+        non-European coordinate ranges (negative/smaller lat values).
+        """
+        return RouteRequest(
+            depot=Depot(x=-73.9935, y=40.7504, lat=40.7504, lng=-73.9935),
+            stops=[
+                Stop(
+                    id=1, x=-73.9855, y=40.7580, lat=40.7580, lng=-73.9855,
+                    window_start=0, window_end=600, service_time=10, priority=3,
+                ),
+                Stop(
+                    id=2, x=-73.9772, y=40.7527, lat=40.7527, lng=-73.9772,
+                    window_start=0, window_end=600, service_time=10, priority=2,
+                ),
+            ],
+            max_shift_time=480,
+            weights=Weights(w_dist=1.0, w_wait=0.5, w_late=3.0, w_priority=2.0, w_shift=4.0),
+            optimization=OptimizationConfig(algorithm="2opt", max_iterations=50, no_improvement_limit=10),
+            travel_mode=travel_mode,
+        )
+
+    def test_geo_route_driving_produces_realistic_travel_time(self) -> None:
+        """King's Cross → Tower Bridge + Tower Bridge → Hyde Park + return
+        spans roughly 15–20 km; at 50 km/h that is ~20–25 min driving,
+        well under the 480-minute shift window.
+        """
+        user = self.make_user("geo-driving")
+        result = main.optimize_route(self.make_sample_route("driving"), DummyRequest("geo-driving"), None, user)
+
+        # The three legs span ~15–20 km at 50 km/h ≈ 18–24 min.
+        # Allow a generous band to account for different orderings.
+        self.assertGreater(result.total_travel_time, 5.0)
+        self.assertLess(result.total_travel_time, 120.0)
+        self.assertTrue(result.feasible)
+
+    def test_geo_route_us_coordinates_produce_realistic_travel_time(self) -> None:
+        """Optimization engine works for US (NYC) coordinates exactly like
+        any other region — the internal Haversine formula is fully global.
+        """
+        user = self.make_user("geo-us")
+        result = main.optimize_route(self.make_us_route("driving"), DummyRequest("geo-us"), None, user)
+
+        # NYC stops are ~1–2 km apart; at 50 km/h ≈ 1–4 min per leg.
+        self.assertGreater(result.total_travel_time, 0.5)
+        self.assertLess(result.total_travel_time, 60.0)
+        self.assertTrue(result.feasible)
+
+    def test_walking_travel_time_is_ten_times_driving(self) -> None:
+        """TravelTimeProvider uses 50 km/h for driving and 5 km/h for walking,
+        so walking metrics must be exactly 10 × the driving metrics.
+        """
+        user = self.make_user("mode-ratio")
+
+        driving_result = main.optimize_route(
+            self.make_sample_route("driving"), DummyRequest("mode-ratio"), None, user
+        )
+        walking_result = main.optimize_route(
+            self.make_sample_route("walking"), DummyRequest("mode-ratio"), None, user
+        )
+
+        self.assertGreater(walking_result.total_travel_time, driving_result.total_travel_time)
+        ratio = walking_result.total_travel_time / driving_result.total_travel_time
+        # Speed ratio is 50/5 = 10; route geometry is fixed so travel-time ratio must be 10.
+        self.assertAlmostEqual(ratio, 10.0, delta=0.1)
+
+    def test_travel_mode_is_persisted_in_history(self) -> None:
+        """travel_mode must survive the JSON round-trip into optimization_runs."""
+        user = self.make_user("mode-history")
+        main.optimize_route(self.make_sample_route("walking"), DummyRequest("mode-history"), None, user)
+
+        history = main.optimization_history(5, user)
+        detail  = main.optimization_history_detail(history[0].id, user)
+        self.assertEqual(detail.request.travel_mode, "walking")
+
+    # ------------------------------------------------------------------
+    # Cross-user data isolation
+    # ------------------------------------------------------------------
+
+    def test_scenario_cannot_be_read_by_a_different_user(self) -> None:
+        user_a = self.make_user("iso-sc-a")
+        user_b = self.make_user("iso-sc-b")
+        route  = self.make_route()
+
+        scenario = main.create_or_update_scenario(
+            ScenarioCreateRequest(name="Private", route=route),
+            DummyRequest("iso-sc-a"),
+            user_a,
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.read_scenario(scenario.id, user_b)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+        # User B's own list must be empty
+        self.assertEqual(len(main.get_saved_scenarios(user_b)), 0)
+
+    def test_history_cannot_be_read_by_a_different_user(self) -> None:
+        user_a = self.make_user("iso-hi-a")
+        user_b = self.make_user("iso-hi-b")
+        route  = self.make_route()
+
+        main.optimize_route(route, DummyRequest("iso-hi-a"), None, user_a)
+        runs_a = main.optimization_history(10, user_a)
+        self.assertEqual(len(runs_a), 1)
+
+        with self.assertRaises(HTTPException) as ctx:
+            main.optimization_history_detail(runs_a[0].id, user_b)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+        # User B's own history must be empty
+        self.assertEqual(len(main.optimization_history(10, user_b)), 0)
+
 
 class HttpAuthFlowTests(unittest.TestCase):
     """

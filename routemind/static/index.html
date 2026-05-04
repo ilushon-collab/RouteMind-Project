@@ -1597,6 +1597,124 @@
             transition: border-color var(--theme-transition-duration) var(--theme-transition-curve);
         }
 
+        /* ---- Navigation Summary Panel ---- */
+        .nav-total-stats {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid rgba(190, 205, 220, 0.5);
+        }
+        .nav-stat { text-align: center; }
+        .nav-stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #14B8E6;
+            line-height: 1.1;
+        }
+        .nav-stat-label {
+            font-size: 11px;
+            color: #94A3B8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 2px;
+        }
+        .nav-mode-badge {
+            background: rgba(20, 184, 230, 0.09);
+            color: #0891b2;
+            border: 1px solid rgba(20, 184, 230, 0.3);
+            padding: 4px 13px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        .nav-leg {
+            border: 1px solid #DDE5EC;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            transition: border-color 200ms;
+        }
+        .nav-leg-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 14px;
+            cursor: pointer;
+            background: rgba(248, 251, 253, 0.9);
+            user-select: none;
+            gap: 8px;
+        }
+        .nav-leg-header:hover { background: rgba(20, 184, 230, 0.06); }
+        .nav-leg-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+            flex: 1;
+        }
+        .nav-leg-meta {
+            font-size: 12px;
+            color: #64748B;
+            white-space: nowrap;
+        }
+        .nav-leg-toggle {
+            font-size: 11px;
+            color: #94A3B8;
+            transition: transform 200ms;
+            line-height: 1;
+        }
+        .nav-leg-toggle.open { transform: rotate(180deg); }
+        .nav-steps {
+            display: none;
+            padding: 4px 14px 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #fff;
+        }
+        .nav-steps.open { display: block; }
+        .nav-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(220, 230, 240, 0.55);
+        }
+        .nav-step:last-child { border-bottom: none; }
+        .nav-step-icon {
+            font-size: 15px;
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .nav-step-text { flex: 1; }
+        .nav-step-instruction {
+            font-size: 13px;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+        .nav-step-dist {
+            font-size: 11px;
+            color: #94A3B8;
+            margin-top: 1px;
+        }
+        /* Dark mode nav overrides */
+        body.dark-mode .nav-stat-value  { color: #38BDF8; }
+        body.dark-mode .nav-mode-badge  { background: rgba(56,189,248,0.12); color: #7dd3fc; border-color: rgba(56,189,248,0.3); }
+        body.dark-mode .nav-total-stats { border-color: rgba(71,85,105,0.45); }
+        body.dark-mode .nav-leg         { border-color: #334155; }
+        body.dark-mode .nav-leg-header  { background: rgba(30,41,59,0.7); }
+        body.dark-mode .nav-leg-header:hover { background: rgba(56,189,248,0.08); }
+        body.dark-mode .nav-leg-title   { color: #e2e8f0; }
+        body.dark-mode .nav-leg-meta    { color: #94A3B8; }
+        body.dark-mode .nav-steps       { background: #0f172a; }
+        body.dark-mode .nav-step        { border-color: rgba(51,65,85,0.5); }
+        body.dark-mode .nav-step-instruction { color: #e2e8f0; }
+
         /* Map error / warning banner */
         .map-error-msg {
             background: rgba(234, 88, 12, 0.08);
@@ -2259,7 +2377,7 @@
                     </div>
                     <div class="stacked-actions">
                         <div class="result-toolbar">
-                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load London Demo</button>
+                            <button class="btn btn-secondary" onclick="loadMapDemo()">Load Demo Route</button>
                             <button class="btn btn-secondary" onclick="exportLatestResult()">Export Latest Result</button>
                         </div>
                     </div>
@@ -2376,6 +2494,18 @@
                         <!-- Routing error / fallback notice -->
                         <div class="map-error-msg" id="mapError" style="display:none;"></div>
                     </div>
+
+                    <!-- Road Navigation Summary & Turn-by-Turn Directions -->
+                    <div class="card" id="navSummaryCard" style="display:none;">
+                        <div class="card-title">
+                            <span class="card-title-icon">🧭</span>
+                            Road Navigation
+                        </div>
+                        <!-- OSRM total duration + distance -->
+                        <div id="navSummary"></div>
+                        <!-- Per-leg collapsible step list -->
+                        <div id="navLegs"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2434,32 +2564,31 @@
             { code: 'ae', flag: '🇦🇪', name: 'UAE' },
         ];
 
-        // London landmarks demo (always has geocoords so Leaflet map always shows)
+        // Global demo route: London, United Kingdom
+        // King's Cross → Tower Bridge → Hyde Park → Canary Wharf
+        // Real geocoded coordinates; fully covered by Nominatim and OSRM worldwide routing.
         const SAMPLE_MAP_PAYLOAD = {
             depot: {
-                x: -0.1246, y: 51.5007, lat: 51.5007, lng: -0.1246,
-                label: 'Westminster Bridge, London, England',
-                city: 'London', country: 'gb', street: 'Westminster Bridge', house_number: ''
+                x: -0.1238, y: 51.5308, lat: 51.5308, lng: -0.1238,
+                label: "King's Cross Station, London, United Kingdom",
+                city: 'London', country: 'gb', street: "King's Cross", house_number: ''
             },
             stops: [
-                { id: 1, x: -0.1419, y: 51.5014, lat: 51.5014, lng: -0.1419,
-                  label: 'Buckingham Palace, London', city: 'London', country: 'gb',
-                  street: 'Buckingham Palace Road', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 3 },
-                { id: 2, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754,
-                  label: 'Tower of London, EC3N 4AB', city: 'London', country: 'gb',
-                  street: 'Tower Hill', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 5 },
-                { id: 3, x: -0.0994, y: 51.5076, lat: 51.5076, lng: -0.0994,
-                  label: 'St Paul\'s Cathedral, London', city: 'London', country: 'gb',
-                  street: 'St Paul\'s Churchyard', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 2 },
-                { id: 4, x: -0.1195, y: 51.5033, lat: 51.5033, lng: -0.1195,
-                  label: 'Tate Modern, Bankside, London', city: 'London', country: 'gb',
-                  street: 'Bankside', house_number: '',
-                  window_start: 0, window_end: 30, service_time: 5, priority: 4 },
+                { id: 1, x: -0.0754, y: 51.5055, lat: 51.5055, lng: -0.0754,
+                  label: 'Tower Bridge, London, United Kingdom',
+                  city: 'London', country: 'gb', street: 'Tower Bridge Road', house_number: '',
+                  window_start: 0, window_end: 300, service_time: 15, priority: 3 },
+                { id: 2, x: -0.1528, y: 51.5027, lat: 51.5027, lng: -0.1528,
+                  label: 'Hyde Park Corner, London, United Kingdom',
+                  city: 'London', country: 'gb', street: 'Hyde Park Corner', house_number: '',
+                  window_start: 0, window_end: 300, service_time: 15, priority: 4 },
+                { id: 3, x: -0.0235, y: 51.5054, lat: 51.5054, lng: -0.0235,
+                  label: 'Canary Wharf, London, United Kingdom',
+                  city: 'London', country: 'gb', street: 'Canary Wharf', house_number: '',
+                  window_start: 0, window_end: 300, service_time: 15, priority: 2 },
             ],
-            max_shift_time: 60,
+            max_shift_time: 300,
+            travel_mode: 'driving',
             weights: { w_dist: 1, w_wait: 0.5, w_late: 3, w_priority: 2, w_shift: 4 },
             optimization: { algorithm: '2opt', max_iterations: 250, no_improvement_limit: 40, time_limit: null }
         };
@@ -3329,6 +3458,7 @@
                 })),
                 max_shift_time: maxShift,
                 weights,
+                travel_mode: document.getElementById('travelModeSelect').value || 'driving',
                 optimization: {
                     algorithm:            document.getElementById('algorithm').value,
                     max_iterations:       maxIter,
@@ -3356,6 +3486,10 @@
             document.getElementById('weightLate').value            = payload.weights?.w_late ?? 2;
             document.getElementById('weightPriority').value        = payload.weights?.w_priority ?? 1;
             document.getElementById('weightShift').value           = payload.weights?.w_shift ?? 4;
+            // Restore travel mode so subsequent optimizations use the same mode that was saved.
+            if (payload.travel_mode) {
+                document.getElementById('travelModeSelect').value = payload.travel_mode;
+            }
 
             // Depot
             const d = payload.depot;
@@ -3388,6 +3522,18 @@
                 geocoded: hasGeo
             };
             setDepotStatus(hasGeo, hasGeo ? `✅ ${depotLabel}` : `⚠️ ${depotLabel} (not geocoded)`);
+
+            // Restore the selected country from the payload so that subsequent geocoding
+            // and autocomplete searches use the correct country filter automatically.
+            const payloadCountryCode = d.country;
+            if (payloadCountryCode) {
+                const matchedCountry = COUNTRIES.find(c => c.code === payloadCountryCode);
+                if (matchedCountry) {
+                    selectedCountry = matchedCountry;
+                    localStorage.setItem(COUNTRY_STORAGE_KEY, JSON.stringify(selectedCountry));
+                    updateCountryBadge();
+                }
+            }
 
             // Stops
             stops = payload.stops.map(stop => {
@@ -3761,12 +3907,12 @@
 
         function loadMapDemo() {
             applyRoutePayload(SAMPLE_MAP_PAYLOAD);
-            // Restore country context to UK
+            // Set country context to match the demo stops (United Kingdom)
             selectedCountry = { code: 'gb', flag: '🇬🇧', name: 'United Kingdom' };
             updateCountryBadge();
             currentScenarioId = null;
-            document.getElementById('scenarioName').value = 'London map demo';
-            showMessage('success', 'London map demo loaded. Click Optimize Route to see the real map!');
+            document.getElementById('scenarioName').value = 'London demo route';
+            showMessage('success', "Demo loaded (King's Cross → Tower Bridge → Hyde Park → Canary Wharf, London). Click Optimize Route to see the live road map!");
         }
 
         function exportLatestResult() {
@@ -3936,6 +4082,7 @@
             document.getElementById('routeMap').style.display      = 'none';
             document.getElementById('mapControls').style.display   = 'none';
             document.getElementById('mapError').style.display      = 'none';
+            clearNavigationPanel();
         }
 
         function initLeafletMap(centerLat, centerLng, zoom) {
@@ -3945,6 +4092,10 @@
                 leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
             }
             mapEl.style.display = 'block';
+            // Trigger a forced reflow so Leaflet reads the correct container
+            // dimensions instead of a stale 0×0 size. The return value is
+            // intentionally unused — the side-effect (layout computation) is all we need.
+            const _forceReflow = mapEl.getBoundingClientRect(); // eslint-disable-line no-unused-vars
             leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
             updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
         }
@@ -3968,17 +4119,261 @@
                     opacity: 1
                 }).addTo(leafletMap);
             }
+
+            // Invalidate size in the next tick so the map redraws correctly
+            // if the container dimensions changed while the tile layer was loading
+            // (e.g. switching between satellite and streets while the map was hidden).
+            setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 0);
         }
 
-        async function fetchOSRMRoute(waypoints, mode, signal) {
+        // Fetch one real road segment (A → B) from the routing provider.
+        // Returns { latLngs, duration, distance, leg } for that single segment.
+        async function fetchSegment(from, to, mode, signal) {
             const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
-            const coords  = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
-            const resp    = await fetch(`${service}/${coords}?overview=full&geometries=geojson`, { signal });
+            const coords  = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+            const resp    = await fetch(
+                `${service}/${coords}?overview=full&geometries=geojson&steps=true`,
+                { signal }
+            );
             if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
             const data = await resp.json();
             if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
-            if (!data.routes || data.routes.length === 0) throw new Error('OSRM routing returned no valid routes — the waypoints may be too far apart or the selected travel mode may not support this route');
-            return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+            if (!data.routes || data.routes.length === 0)
+                throw new Error('No road route found for this segment — the points may be too far apart or inaccessible by the selected travel mode');
+            const route = data.routes[0];
+            return {
+                latLngs:  route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+                duration: route.duration,   // seconds for this segment
+                distance: route.distance,   // metres for this segment
+                leg:      route.legs[0]     // OSRM always returns exactly 1 leg for a 2-point request
+            };
+        }
+
+        // Fetch every consecutive pair in `waypoints` as individual road segments,
+        // then merge the results into a single route object.
+        // This satisfies the requirement: one real routing request per segment.
+        async function fetchOSRMRoute(waypoints, mode, signal) {
+            if (waypoints.length < 2)
+                throw new Error('Need at least 2 waypoints to build a route');
+
+            // Fetch each segment sequentially to be a polite consumer of
+            // the public routing service and to surface per-segment errors clearly.
+            const segments = [];
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                // Re-check abort before each request so stale requests stop early
+                if (signal && signal.aborted) throw new DOMException('Routing aborted', 'AbortError');
+                const seg = await fetchSegment(waypoints[i], waypoints[i + 1], mode, signal);
+                segments.push(seg);
+            }
+
+            // Merge: concatenate latLngs deduplicating shared junction points,
+            // sum durations and distances, collect one leg per segment.
+            const mergedLatLngs = [];
+            let totalDuration   = 0;
+            let totalDistance   = 0;
+            const mergedLegs    = [];
+
+            for (let i = 0; i < segments.length; i++) {
+                const seg = segments[i];
+                // Skip the first point of each segment after the first — it is
+                // identical to the last point of the previous segment.
+                const lls = i === 0 ? seg.latLngs : seg.latLngs.slice(1);
+                mergedLatLngs.push(...lls);
+                totalDuration += seg.duration;
+                totalDistance += seg.distance;
+                mergedLegs.push(seg.leg);
+            }
+
+            return {
+                latLngs:  mergedLatLngs,
+                duration: totalDuration,
+                distance: totalDistance,
+                legs:     mergedLegs
+            };
+        }
+
+        /* ============================================================
+         *  NAVIGATION HELPERS — format OSRM data into human-readable UI
+         * ============================================================ */
+
+        function formatNavDuration(seconds) {
+            if (!isFinite(seconds) || seconds < 0) return '—';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.round((seconds % 3600) / 60);
+            if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+            return `${m} min`;
+        }
+
+        function formatNavDistance(metres) {
+            if (!isFinite(metres) || metres < 0) return '—';
+            if (metres < 1000) return `${Math.round(metres)} m`;
+            return `${(metres / 1000).toFixed(1)} km`;
+        }
+
+        // Returns a directional symbol for an OSRM maneuver
+        function getManeuverArrow(type, modifier) {
+            if (type === 'arrive')   return '🏁';
+            if (type === 'depart')   return '🚀';
+            if (type === 'roundabout' || type === 'rotary') return '🔄';
+            if (type === 'on ramp')  return '↗';
+            if (type === 'off ramp') return '↘';
+            if (type === 'fork') {
+                if (modifier === 'left')  return '↖';
+                if (modifier === 'right') return '↗';
+                return '↑';
+            }
+            const arrows = {
+                'left':         '↰',
+                'right':        '↱',
+                'slight left':  '↖',
+                'slight right': '↗',
+                'sharp left':   '↩',
+                'sharp right':  '↪',
+                'straight':     '↑',
+                'uturn':        '↩',
+            };
+            return arrows[modifier] || '↑';
+        }
+
+        // Builds a short human-readable instruction from a single OSRM step
+        function buildStepInstruction(step) {
+            const m    = step.maneuver || {};
+            const type = m.type     || '';
+            const mod  = m.modifier || '';
+            const road = step.name  ? ` onto ${step.name}` : '';
+
+            switch (type) {
+                case 'depart':
+                    return `Depart${road}`;
+                case 'arrive':
+                    return 'Arrive at destination';
+                case 'turn':
+                    switch (mod) {
+                        case 'left':         return `Turn left${road}`;
+                        case 'right':        return `Turn right${road}`;
+                        case 'slight left':  return `Keep slight left${road}`;
+                        case 'slight right': return `Keep slight right${road}`;
+                        case 'sharp left':   return `Make a sharp left${road}`;
+                        case 'sharp right':  return `Make a sharp right${road}`;
+                        case 'straight':     return `Continue straight${road}`;
+                        case 'uturn':        return `Make a U-turn`;
+                        default:             return `Turn${road}`;
+                    }
+                case 'new name':
+                case 'continue':
+                    return `Continue${road}`;
+                case 'merge':
+                    return `Merge${road}`;
+                case 'fork':
+                    if (mod === 'left')  return `Keep left at the fork${road}`;
+                    if (mod === 'right') return `Keep right at the fork${road}`;
+                    return `At the fork${road}`;
+                case 'end of road':
+                    if (mod === 'left')  return `Turn left at end of road${road}`;
+                    if (mod === 'right') return `Turn right at end of road${road}`;
+                    return `At end of road${road}`;
+                case 'on ramp':
+                    return `Take the on-ramp${road}`;
+                case 'off ramp':
+                    return `Take the exit${road}`;
+                case 'roundabout':
+                case 'rotary':
+                    return `Enter roundabout${road}`;
+                case 'exit roundabout':
+                case 'exit rotary':
+                    return `Exit roundabout${road}`;
+                case 'notification':
+                    return `Continue${road}`;
+                default:
+                    return `Continue${road || ' on route'}`;
+            }
+        }
+
+        // Builds waypoint labels: Depot → Stop 1 (label) → Stop 2 (label) → … → Depot
+        function buildWaypointLabels(orderedStops, depotLabel) {
+            const labels = [depotLabel];
+            orderedStops.forEach((s, i) => {
+                const name = s.label ? s.label.split(',')[0] : `Stop ${s.id}`;
+                labels.push(`${name}`);
+            });
+            labels.push(depotLabel);  // return to depot
+            return labels;
+        }
+
+        // Renders the navigation summary card: totals + per-leg collapsible step panels
+        function renderNavigationPanel(legs, totalDuration, totalDistance, mode, orderedStops, depotLabel) {
+            const card = document.getElementById('navSummaryCard');
+            card.style.display = 'block';
+
+            const modeLabel = (mode === 'walking') ? '🚶 Walking' : '🚗 Driving';
+            document.getElementById('navSummary').innerHTML = `
+                <div class="nav-total-stats">
+                    <div class="nav-stat">
+                        <div class="nav-stat-value">${formatNavDuration(totalDuration)}</div>
+                        <div class="nav-stat-label">Road ETA</div>
+                    </div>
+                    <div class="nav-stat">
+                        <div class="nav-stat-value">${formatNavDistance(totalDistance)}</div>
+                        <div class="nav-stat-label">Road Distance</div>
+                    </div>
+                    <div class="nav-mode-badge">${modeLabel}</div>
+                </div>
+            `;
+
+            const waypointLabels = buildWaypointLabels(orderedStops, depotLabel);
+            const legsHtml = (legs || []).map((leg, i) => {
+                const from = escapeHtml(waypointLabels[i]     || `Point ${i + 1}`);
+                const to   = escapeHtml(waypointLabels[i + 1] || `Point ${i + 2}`);
+                const legDur  = formatNavDuration(leg.duration);
+                const legDist = formatNavDistance(leg.distance);
+                const steps   = leg.steps || [];
+                const stepsHtml = steps.map(step => {
+                    const arrow  = getManeuverArrow(step.maneuver?.type, step.maneuver?.modifier);
+                    const instr  = escapeHtml(buildStepInstruction(step));
+                    const dist   = step.distance > 0 ? formatNavDistance(step.distance) : '';
+                    const durStr = step.duration > 0 ? formatNavDuration(step.duration) : '';
+                    const meta   = [dist, durStr].filter(Boolean).join(' · ');
+                    return `<div class="nav-step">
+                        <div class="nav-step-icon">${arrow}</div>
+                        <div class="nav-step-text">
+                            <div class="nav-step-instruction">${instr}</div>
+                            ${meta ? `<div class="nav-step-dist">${escapeHtml(meta)}</div>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                const legId = `navLeg_${i}`;
+                return `
+                    <div class="nav-leg">
+                        <div class="nav-leg-header" onclick="toggleNavLeg('${legId}')">
+                            <div class="nav-leg-title">${from} → ${to}</div>
+                            <div class="nav-leg-meta">${legDur} · ${legDist}</div>
+                            <div class="nav-leg-toggle" id="${legId}_arrow">▼</div>
+                        </div>
+                        <div class="nav-steps" id="${legId}">
+                            ${stepsHtml || '<div style="padding:8px 0;color:#94A3B8;font-size:13px;">No step details available.</div>'}
+                        </div>
+                    </div>`;
+            }).join('');
+
+            document.getElementById('navLegs').innerHTML = legsHtml;
+        }
+
+        function toggleNavLeg(legId) {
+            const panel = document.getElementById(legId);
+            const arrow = document.getElementById(`${legId}_arrow`);
+            if (!panel) return;
+            const isOpen = panel.classList.toggle('open');
+            if (arrow) arrow.classList.toggle('open', isOpen);
+        }
+
+        function clearNavigationPanel() {
+            const card = document.getElementById('navSummaryCard');
+            if (card) card.style.display = 'none';
+            const summary = document.getElementById('navSummary');
+            if (summary) summary.innerHTML = '';
+            const legs = document.getElementById('navLegs');
+            if (legs) legs.innerHTML = '';
         }
 
         async function renderMapVisualization(result) {
@@ -4040,21 +4435,29 @@
             osrmAbortController = new AbortController();
             const { signal } = osrmAbortController;
 
-            let routeLatLngs;
+            let osrmData = null;
             try {
-                routeLatLngs = await fetchOSRMRoute(waypointsForRouting, mode, signal);
+                osrmData = await fetchOSRMRoute(waypointsForRouting, mode, signal);
                 mapError.style.display = 'none';
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                routeLatLngs = waypointsForRouting.map(p => [p.lat, p.lng]);
-                mapError.textContent = '⚠️ Live routing service is currently unavailable. Showing a straight-line route instead.';
+                // Do NOT fall back to straight-line geometry — that would produce
+                // fake routes that contradict real road distances and travel times.
+                // Show a clear error instead; markers are still rendered below.
+                mapError.textContent = `⚠️ Road routing unavailable: ${err.message}. Check your internet connection or try a different travel mode.`;
                 mapError.style.display = 'block';
+                clearNavigationPanel();
             }
 
             if (!leafletMap) return;
-            currentRouteLayer = L.polyline(routeLatLngs, {
-                color: '#14B8E6', weight: 4, opacity: 0.85, lineJoin: 'round'
-            }).addTo(leafletMap);
+
+            // Draw the road route polyline only when real OSRM data is available.
+            // Never draw straight-line geometry for real addresses.
+            if (osrmData) {
+                currentRouteLayer = L.polyline(osrmData.latLngs, {
+                    color: '#14B8E6', weight: 4, opacity: 0.85, lineJoin: 'round'
+                }).addTo(leafletMap);
+            }
 
             orderedStops.forEach((stop, idx) => {
                 const tooltip = stop.label ? stop.label.split(',')[0] : `Stop ${stop.id}`;
@@ -4063,7 +4466,25 @@
                     .addTo(currentMarkerGroup);
             });
 
-            leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+            // Fit the map to the road route when available; otherwise fit to all markers.
+            if (currentRouteLayer) {
+                leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
+            } else {
+                const markerBounds = L.latLngBounds(waypointsForRouting.map(p => [p.lat, p.lng]));
+                leafletMap.fitBounds(markerBounds, { padding: [40, 40] });
+            }
+
+            // Render road-based navigation summary and turn-by-turn directions
+            if (osrmData) {
+                renderNavigationPanel(
+                    osrmData.legs,
+                    osrmData.duration,
+                    osrmData.distance,
+                    mode,
+                    orderedStops,
+                    depotLabel
+                );
+            }
         }
 
         function onMapStyleChange() {
@@ -4071,8 +4492,16 @@
         }
 
         async function onTravelModeChange() {
+            // Update the displayed OSRM route polyline for the new mode.
             if (leafletMap && window.latestOptimizationResult) {
                 await renderMapVisualization(window.latestOptimizationResult);
+            }
+            // Re-run optimization so that the dashboard metrics (travel time,
+            // finish time, costs) also reflect the new walking/driving speed.
+            // Only triggered when the user is already authenticated and a valid
+            // route is loaded, to avoid unexpected auth prompts.
+            if (window.latestOptimizationResult && stops.length > 0 && getStoredToken()) {
+                await optimizeRoute();
             }
         }
 

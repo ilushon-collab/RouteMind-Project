@@ -195,7 +195,7 @@ def optimize_route(
     enforce_rate_limit(request, "optimize", limit=30, window_seconds=60, current_user=current_user)
 
     try:
-        distance_matrix = build_distance_matrix(data.depot, data.stops)
+        distance_matrix = build_distance_matrix(data.depot, data.stops, travel_mode=data.travel_mode)
 
         initial_route = greedy_initial_route(
             data.depot,
