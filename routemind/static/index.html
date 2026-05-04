@@ -3012,7 +3012,7 @@
                     country: selectedCountry.name
                 });
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions found. Please verify your input or try a different address.</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No matching suggestions found. Continue typing or enter a complete address.</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
@@ -3180,7 +3180,7 @@
                     country: selectedCountry.name
                 });
                 if (!results.length) {
-                    dropdown.innerHTML = '<div class="autocomplete-hint">No suggestions found. Please verify your input or try a different address.</div>';
+                    dropdown.innerHTML = '<div class="autocomplete-hint">No matching suggestions found. Continue typing or enter a complete address.</div>';
                     return;
                 }
                 dropdown.innerHTML = results.map((r, i) => {
