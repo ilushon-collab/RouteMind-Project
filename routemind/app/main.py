@@ -74,10 +74,17 @@ bearer_scheme = HTTPBearer(auto_error=False)
 rate_limiter = InMemoryRateLimiter()
 haversine_provider = HaversineDistanceProvider()
 # Route-bend constants are coordinate-degree deltas used only for drawing the
-# browser polyline; timing/distance still come from geographic distance.
+# browser polyline; 0.002 keeps very short city hops visibly curved, 0.02 caps
+# longer hops near the corridor between endpoints, and 0.18 scales that capped
+# delta into a subtle screen-space bend. Timing/distance use geographic distance.
 MIN_ROUTE_BEND_DELTA = 0.002
 MAX_ROUTE_BEND_DELTA = 0.02
 ROUTE_BEND_SCALE = 0.18
+# Conservative urban speeds and road-distance multipliers for browser routing.
+DRIVING_ROUTE_SPEED_KMH = 34.0
+WALKING_ROUTE_SPEED_KMH = 4.8
+DRIVING_ROAD_FACTOR = 1.28
+WALKING_ROAD_FACTOR = 1.12
 
 app.add_middleware(
     CORSMiddleware,
@@ -259,7 +266,7 @@ def _normalize_place_text(value: str) -> str:
     return "".join(char.lower() if char.isalnum() else " " for char in value)
 
 
-def _calculate_distance_km(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+def _calculate_geo_distance(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
     return haversine_provider.distance(
         RoadWaypoint(lat=a_lat, lng=a_lng),
         RoadWaypoint(lat=b_lat, lng=b_lng),
@@ -308,15 +315,15 @@ def local_road_route(payload: RoadRouteRequest) -> dict:
     if len(payload.waypoints) < 2:
         raise HTTPException(status_code=422, detail="At least two waypoints are required.")
 
-    speed_kmh = 34.0 if payload.mode == "driving" else 4.8
-    road_factor = 1.28 if payload.mode == "driving" else 1.12
+    speed_kmh = DRIVING_ROUTE_SPEED_KMH if payload.mode == "driving" else WALKING_ROUTE_SPEED_KMH
+    road_factor = DRIVING_ROAD_FACTOR if payload.mode == "driving" else WALKING_ROAD_FACTOR
     lat_lngs: list[list[float]] = []
     legs: list[dict] = []
     total_distance = 0.0
     total_duration = 0.0
 
     for idx, (start, end) in enumerate(zip(payload.waypoints, payload.waypoints[1:])):
-        km = _calculate_distance_km(start.lat, start.lng, end.lat, end.lng) * road_factor
+        km = _calculate_geo_distance(start.lat, start.lng, end.lat, end.lng) * road_factor
         distance_m = km * 1000
         duration_s = (km / speed_kmh) * 3600
         segment_points = _segment_geometry((start.lat, start.lng), (end.lat, end.lng))
