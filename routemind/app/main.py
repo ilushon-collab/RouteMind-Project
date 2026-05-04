@@ -20,11 +20,14 @@ from app.auth import (
 from app.evaluator import evaluate_route
 from app.models import (
     AuthResponse,
+    GeocodeResult,
     LoginRequest,
     OptimizationConfig,
     OptimizationHistoryDetail,
     OptimizationHistorySummary,
     RegisterRequest,
+    RoadRouteRequest,
+    RoadWaypoint,
     RouteRequest,
     RouteResponse,
     ScenarioCreateRequest,
@@ -49,7 +52,7 @@ from app.storage import (
     record_optimization_run,
     save_scenario,
 )
-from app.utils import build_distance_matrix
+from app.utils import HaversineDistanceProvider, build_distance_matrix
 
 
 logging.basicConfig(
@@ -69,6 +72,19 @@ async def lifespan(application: FastAPI):
 app = FastAPI(title="RouteMind API", version="3.0", lifespan=lifespan)
 bearer_scheme = HTTPBearer(auto_error=False)
 rate_limiter = InMemoryRateLimiter()
+haversine_provider = HaversineDistanceProvider()
+# Route-bend constants are coordinate-degree deltas used only for drawing the
+# browser polyline; 0.002 keeps very short city hops visibly curved, 0.02 caps
+# longer hops near the corridor between endpoints, and 0.18 scales that capped
+# delta into a subtle screen-space bend. Timing/distance use geographic distance.
+MIN_ROUTE_BEND_DELTA = 0.002
+MAX_ROUTE_BEND_DELTA = 0.02
+ROUTE_BEND_SCALE = 0.18
+# Conservative urban speeds and road-distance multipliers for browser routing.
+DRIVING_ROUTE_SPEED_KMH = 34.0
+WALKING_ROUTE_SPEED_KMH = 4.8
+DRIVING_ROAD_FACTOR = 1.28
+WALKING_ROAD_FACTOR = 1.12
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,6 +199,164 @@ def me(current_user: dict = Depends(get_current_user)) -> UserResponse:
 @app.get("/register")
 async def auth_entrypoint_fallback():
     return FileResponse(static_dir / "index.html", headers={"Cache-Control": "no-store"})
+
+
+LOCAL_GEOCODER_PLACES = [
+    {
+        "lat": 51.5308,
+        "lon": -0.1238,
+        "display_name": "King's Cross Station, Euston Road, London, United Kingdom",
+        "address": {"road": "King's Cross", "city": "London", "country_code": "gb"},
+        "aliases": ["king's cross", "kings cross", "euston road", "station"],
+    },
+    {
+        "lat": 51.5055,
+        "lon": -0.0754,
+        "display_name": "Tower Bridge, Tower Bridge Road, London, United Kingdom",
+        "address": {"road": "Tower Bridge Road", "city": "London", "country_code": "gb"},
+        "aliases": ["tower bridge", "tower bridge road"],
+    },
+    {
+        "lat": 51.5027,
+        "lon": -0.1528,
+        "display_name": "Hyde Park Corner, London, United Kingdom",
+        "address": {"road": "Hyde Park Corner", "city": "London", "country_code": "gb"},
+        "aliases": ["hyde park", "hyde park corner"],
+    },
+    {
+        "lat": 51.5054,
+        "lon": -0.0235,
+        "display_name": "Canary Wharf, London, United Kingdom",
+        "address": {"road": "Canary Wharf", "city": "London", "country_code": "gb"},
+        "aliases": ["canary wharf"],
+    },
+    {
+        "lat": 40.7580,
+        "lon": -73.9855,
+        "display_name": "Times Square, Manhattan, New York, United States",
+        "address": {"road": "Times Square", "city": "New York", "country_code": "us"},
+        "aliases": ["times square", "manhattan"],
+    },
+    {
+        "lat": 40.7484,
+        "lon": -73.9857,
+        "display_name": "Empire State Building, 20 W 34th Street, New York, United States",
+        "address": {"road": "W 34th Street", "city": "New York", "country_code": "us"},
+        "aliases": ["empire state", "34th street"],
+    },
+    {
+        "lat": 48.8584,
+        "lon": 2.2945,
+        "display_name": "Eiffel Tower, Paris, France",
+        "address": {"road": "Champ de Mars", "city": "Paris", "country_code": "fr"},
+        "aliases": ["eiffel tower", "champ de mars"],
+    },
+]
+
+
+def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
+    if country_code and place["address"].get("country_code") != country_code.lower():
+        return False
+    searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
+    query_parts = _normalize_place_text(query).split()
+    return all(part in searchable for part in query_parts)
+
+
+def _normalize_place_text(value: str) -> str:
+    return "".join(char.lower() if char.isalnum() else " " for char in value)
+
+
+def _calculate_geo_distance(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+    return haversine_provider.distance(
+        RoadWaypoint(lat=a_lat, lng=a_lng),
+        RoadWaypoint(lat=b_lat, lng=b_lng),
+    )
+
+
+def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> list[list[float]]:
+    start_lat, start_lng = start
+    end_lat, end_lng = end
+    mid_lat = (start_lat + end_lat) / 2
+    mid_lng = (start_lng + end_lng) / 2
+    coordinate_delta = abs(end_lat - start_lat) + abs(end_lng - start_lng)
+    # Keep curvature visible on short city trips while capping it so longer
+    # routes do not arc unrealistically far away from their endpoints.
+    bend = min(max(coordinate_delta, MIN_ROUTE_BEND_DELTA), MAX_ROUTE_BEND_DELTA) * ROUTE_BEND_SCALE
+    return [
+        [start_lat, start_lng],
+        [start_lat + (mid_lat - start_lat) * 0.8, mid_lng - bend],
+        [mid_lat + bend, mid_lng],
+        [mid_lat + (end_lat - mid_lat) * 0.8, mid_lng + bend],
+        [end_lat, end_lng],
+    ]
+
+
+@app.get("/geocode/search", response_model=list[GeocodeResult])
+def local_geocode_search(
+    q: str = Query(min_length=1),
+    country_code: str | None = Query(default=None, min_length=2, max_length=2),
+    limit: int = Query(default=6, ge=1, le=10),
+) -> list[GeocodeResult]:
+    matches = [
+        GeocodeResult(
+            lat=place["lat"],
+            lon=place["lon"],
+            display_name=place["display_name"],
+            address=place["address"],
+        )
+        for place in LOCAL_GEOCODER_PLACES
+        if _place_matches(place, q, country_code)
+    ]
+    return matches[:limit]
+
+
+@app.post("/route-road")
+def local_road_route(payload: RoadRouteRequest) -> dict:
+    if len(payload.waypoints) < 2:
+        raise HTTPException(status_code=422, detail="At least two waypoints are required.")
+
+    speed_kmh = DRIVING_ROUTE_SPEED_KMH if payload.mode == "driving" else WALKING_ROUTE_SPEED_KMH
+    road_factor = DRIVING_ROAD_FACTOR if payload.mode == "driving" else WALKING_ROAD_FACTOR
+    lat_lngs: list[list[float]] = []
+    legs: list[dict] = []
+    total_distance = 0.0
+    total_duration = 0.0
+
+    for idx, (start, end) in enumerate(zip(payload.waypoints, payload.waypoints[1:])):
+        km = _calculate_geo_distance(start.lat, start.lng, end.lat, end.lng) * road_factor
+        distance_m = km * 1000
+        duration_s = (km / speed_kmh) * 3600
+        segment_points = _segment_geometry((start.lat, start.lng), (end.lat, end.lng))
+        lat_lngs.extend(segment_points if idx == 0 else segment_points[1:])
+        total_distance += distance_m
+        total_duration += duration_s
+        legs.append(
+            {
+                "duration": duration_s,
+                "distance": distance_m,
+                "steps": [
+                    {
+                        "name": f"route segment {idx + 1}",
+                        "distance": distance_m,
+                        "duration": duration_s,
+                        "maneuver": {"type": "continue", "modifier": "straight"},
+                    },
+                    {
+                        "name": "",
+                        "distance": 0,
+                        "duration": 0,
+                        "maneuver": {"type": "arrive"},
+                    },
+                ],
+            }
+        )
+
+    return {
+        "latLngs": lat_lngs,
+        "duration": total_duration,
+        "distance": total_distance,
+        "legs": legs,
+    }
 
 
 @app.post("/optimize", response_model=RouteResponse)

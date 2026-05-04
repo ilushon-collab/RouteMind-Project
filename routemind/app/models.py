@@ -196,3 +196,20 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"
     user: UserResponse
+
+
+class GeocodeResult(BaseModel):
+    lat: float
+    lon: float
+    display_name: str
+    address: dict = Field(default_factory=dict)
+
+
+class RoadWaypoint(BaseModel):
+    lat: float
+    lng: float
+
+
+class RoadRouteRequest(BaseModel):
+    waypoints: List[RoadWaypoint]
+    mode: Literal["driving", "walking"] = "driving"

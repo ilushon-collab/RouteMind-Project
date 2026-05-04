@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RouteMind - Route Optimization</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2314B8E6'/%3E%3Cpath d='M18 52 30 12l16 40' fill='none' stroke='white' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='30' cy='12' r='5' fill='%23FF8A34'/%3E%3C/svg%3E">
     <style>
         * {
             margin: 0;
@@ -1589,13 +1590,73 @@
 
         /* Leaflet map container */
         #routeMap {
+            position: relative;
             height: 450px;
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 14px;
             border: 1px solid #DDE5EC;
+            background: #dbeafe;
             transition: border-color var(--theme-transition-duration) var(--theme-transition-curve);
         }
+
+        .rm-map-bg {
+            position: absolute;
+            inset: 0;
+        }
+
+        .rm-map-bg.map-style-streets {
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.56) 1px, transparent 1px) 0 0 / 56px 56px,
+                linear-gradient(rgba(255,255,255,.56) 1px, transparent 1px) 0 0 / 56px 56px,
+                linear-gradient(135deg, #dff3ea 0%, #dbeafe 48%, #fef3c7 100%);
+        }
+
+        .rm-map-bg.map-style-satellite,
+        .rm-map-bg.map-style-hybrid {
+            background:
+                radial-gradient(circle at 24% 28%, rgba(74, 222, 128, .32), transparent 28%),
+                radial-gradient(circle at 70% 35%, rgba(14, 165, 233, .26), transparent 24%),
+                radial-gradient(circle at 54% 75%, rgba(120, 113, 108, .35), transparent 30%),
+                linear-gradient(135deg, #1f3b2d 0%, #31523f 45%, #263747 100%);
+        }
+
+        .rm-map-bg.map-style-hybrid::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,.22) 1px, transparent 1px) 0 0 / 72px 72px,
+                linear-gradient(rgba(255,255,255,.22) 1px, transparent 1px) 0 0 / 72px 72px;
+        }
+
+        .rm-map-route {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        .rm-map-marker {
+            position: absolute;
+            z-index: 3;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 800;
+            border: 3px solid white;
+            box-shadow: 0 3px 10px rgba(15, 23, 42, .35);
+        }
+
+        .rm-map-marker.depot { background: #FF8A34; }
+        .rm-map-marker.stop { background: #14C8B0; }
 
         /* ---- Navigation Summary Panel ---- */
         .nav-total-stats {
@@ -2137,10 +2198,6 @@
             box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
         }
     </style>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLEg=" crossorigin="anonymous"></script>
 </head>
 <body>
     <!-- Country Picker Overlay (shown on first visit) -->
@@ -2626,34 +2683,6 @@
         let depotGeocodeInProgress = false;
         const stopGeocodeInProgress = {};
 
-        const TILE_CONFIGS = {
-            streets: {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                className: 'rm-tile-streets',
-                maxZoom: 19
-            },
-            satellite: {
-                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
-                className: 'rm-tile-satellite',
-                maxZoom: 19
-            },
-            hybrid: {
-                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                className: 'rm-tile-satellite',
-                maxZoom: 19,
-                labelsUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-                labelsAttribution: ''
-            }
-        };
-
-        const OSRM_SERVICES = {
-            driving: 'https://routing.openstreetmap.de/routed-car/route/v1/driving',
-            walking: 'https://routing.openstreetmap.de/routed-foot/route/v1/foot'
-        };
-
         /* ============================================================
          *  UTILITY HELPERS
          * ============================================================ */
@@ -2911,20 +2940,14 @@
          * ============================================================ */
         async function nominatimSearch(query, countryCode, limit = 6, signal = undefined) {
             const params = new URLSearchParams({
-                format: 'json',
                 q: query,
-                limit: String(limit),
-                addressdetails: '1',
-                'accept-language': 'en'
+                limit: String(limit)
             });
-            if (countryCode) params.set('countrycodes', countryCode);
+            if (countryCode) params.set('country_code', countryCode);
             const fetchOptions = {};
             if (signal) fetchOptions.signal = signal;
-            const resp = await fetch(
-                `https://nominatim.openstreetmap.org/search?${params}`,
-                fetchOptions
-            );
-            if (!resp.ok) throw new Error(`Nominatim search failed with status ${resp.status}`);
+            const resp = await fetch(`/geocode/search?${params}`, fetchOptions);
+            if (!resp.ok) throw new Error(`Address search failed with status ${resp.status}`);
             return resp.json();
         }
 
@@ -4075,10 +4098,8 @@
          * ============================================================ */
         function destroyLeafletMap() {
             if (osrmAbortController) { osrmAbortController.abort(); osrmAbortController = null; }
-            if (leafletMap) {
-                leafletMap.remove();
-                leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
-            }
+            leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
+            document.getElementById('routeMap').innerHTML = '';
             document.getElementById('routeMap').style.display      = 'none';
             document.getElementById('mapControls').style.display   = 'none';
             document.getElementById('mapError').style.display      = 'none';
@@ -4087,109 +4108,37 @@
 
         function initLeafletMap(centerLat, centerLng, zoom) {
             const mapEl = document.getElementById('routeMap');
-            if (leafletMap) {
-                leafletMap.remove();
-                leafletMap = currentTileLayer = currentLabelsLayer = currentRouteLayer = currentMarkerGroup = null;
-            }
             mapEl.style.display = 'block';
-            // Trigger a forced reflow so Leaflet reads the correct container
-            // dimensions instead of a stale 0×0 size. The return value is
-            // intentionally unused — the side-effect (layout computation) is all we need.
-            const _forceReflow = mapEl.getBoundingClientRect(); // eslint-disable-line no-unused-vars
-            leafletMap = L.map('routeMap').setView([centerLat, centerLng], zoom || 13);
+            mapEl.innerHTML = `
+                <div class="rm-map-bg"></div>
+                <svg class="rm-map-route" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+                <div class="rm-map-markers"></div>
+            `;
+            leafletMap = { centerLat, centerLng, zoom: zoom || 13 };
+            currentRouteLayer = null;
+            currentMarkerGroup = null;
             updateTileLayer(document.getElementById('mapStyleSelect').value || 'streets');
         }
 
         function updateTileLayer(style) {
             if (!leafletMap) return;
-            if (currentTileLayer)   { leafletMap.removeLayer(currentTileLayer);   currentTileLayer   = null; }
-            if (currentLabelsLayer) { leafletMap.removeLayer(currentLabelsLayer); currentLabelsLayer = null; }
-
-            const cfg = TILE_CONFIGS[style] || TILE_CONFIGS.streets;
-            currentTileLayer = L.tileLayer(cfg.url, {
-                attribution: cfg.attribution,
-                className: cfg.className || '',
-                maxZoom: cfg.maxZoom || 19
-            }).addTo(leafletMap);
-
-            if (cfg.labelsUrl) {
-                currentLabelsLayer = L.tileLayer(cfg.labelsUrl, {
-                    attribution: cfg.labelsAttribution || '',
-                    maxZoom: cfg.maxZoom || 19,
-                    opacity: 1
-                }).addTo(leafletMap);
-            }
-
-            // Invalidate size in the next tick so the map redraws correctly
-            // if the container dimensions changed while the tile layer was loading
-            // (e.g. switching between satellite and streets while the map was hidden).
-            setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 0);
+            const mapBg = document.querySelector('#routeMap .rm-map-bg');
+            if (!mapBg) return;
+            mapBg.className = `rm-map-bg map-style-${style}`;
+            currentTileLayer = style;
         }
 
-        // Fetch one real road segment (A → B) from the routing provider.
-        // Returns { latLngs, duration, distance, leg } for that single segment.
-        async function fetchSegment(from, to, mode, signal) {
-            const service = OSRM_SERVICES[mode] || OSRM_SERVICES.driving;
-            const coords  = `${from.lng},${from.lat};${to.lng},${to.lat}`;
-            const resp    = await fetch(
-                `${service}/${coords}?overview=full&geometries=geojson&steps=true`,
-                { signal }
-            );
-            if (!resp.ok) throw new Error(`Routing service returned HTTP ${resp.status}`);
-            const data = await resp.json();
-            if (data.code !== 'Ok') throw new Error(data.message || 'Routing failed');
-            if (!data.routes || data.routes.length === 0)
-                throw new Error('No road route found for this segment — the points may be too far apart or inaccessible by the selected travel mode');
-            const route = data.routes[0];
-            return {
-                latLngs:  route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
-                duration: route.duration,   // seconds for this segment
-                distance: route.distance,   // metres for this segment
-                leg:      route.legs[0]     // OSRM always returns exactly 1 leg for a 2-point request
-            };
-        }
-
-        // Fetch every consecutive pair in `waypoints` as individual road segments,
-        // then merge the results into a single route object.
-        // This satisfies the requirement: one real routing request per segment.
         async function fetchOSRMRoute(waypoints, mode, signal) {
             if (waypoints.length < 2)
                 throw new Error('Need at least 2 waypoints to build a route');
-
-            // Fetch each segment sequentially to be a polite consumer of
-            // the public routing service and to surface per-segment errors clearly.
-            const segments = [];
-            for (let i = 0; i < waypoints.length - 1; i++) {
-                // Re-check abort before each request so stale requests stop early
-                if (signal && signal.aborted) throw new DOMException('Routing aborted', 'AbortError');
-                const seg = await fetchSegment(waypoints[i], waypoints[i + 1], mode, signal);
-                segments.push(seg);
-            }
-
-            // Merge: concatenate latLngs deduplicating shared junction points,
-            // sum durations and distances, collect one leg per segment.
-            const mergedLatLngs = [];
-            let totalDuration   = 0;
-            let totalDistance   = 0;
-            const mergedLegs    = [];
-
-            for (let i = 0; i < segments.length; i++) {
-                const seg = segments[i];
-                // Skip the first point of each segment after the first — it is
-                // identical to the last point of the previous segment.
-                const lls = i === 0 ? seg.latLngs : seg.latLngs.slice(1);
-                mergedLatLngs.push(...lls);
-                totalDuration += seg.duration;
-                totalDistance += seg.distance;
-                mergedLegs.push(seg.leg);
-            }
-
-            return {
-                latLngs:  mergedLatLngs,
-                duration: totalDuration,
-                distance: totalDistance,
-                legs:     mergedLegs
-            };
+            const resp = await fetch('/route-road', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ waypoints, mode }),
+                signal
+            });
+            if (!resp.ok) throw new Error(await readApiError(resp));
+            return resp.json();
         }
 
         /* ============================================================
@@ -4376,6 +4325,55 @@
             if (legs) legs.innerHTML = '';
         }
 
+        function renderInternalMap(routeLatLngs, waypoints, orderedStops, depotLabel) {
+            const mapEl = document.getElementById('routeMap');
+            const svg = mapEl.querySelector('.rm-map-route');
+            const markerLayer = mapEl.querySelector('.rm-map-markers');
+            if (!svg || !markerLayer) return;
+
+            const lats = [...routeLatLngs.map(([lat]) => lat), ...waypoints.map(p => p.lat)];
+            const lngs = [...routeLatLngs.map(([, lng]) => lng), ...waypoints.map(p => p.lng)];
+            let minLat = Math.min(...lats), maxLat = Math.max(...lats);
+            let minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+            if (minLat === maxLat) { minLat -= 0.005; maxLat += 0.005; }
+            if (minLng === maxLng) { minLng -= 0.005; maxLng += 0.005; }
+            const latPad = (maxLat - minLat) * 0.12;
+            const lngPad = (maxLng - minLng) * 0.12;
+            minLat -= latPad; maxLat += latPad; minLng -= lngPad; maxLng += lngPad;
+
+            const project = point => ({
+                x: ((point.lng - minLng) / (maxLng - minLng)) * 100,
+                y: (1 - ((point.lat - minLat) / (maxLat - minLat))) * 100
+            });
+            const toPct = value => Math.min(100, Math.max(0, Number(value))).toFixed(2);
+
+            const pointsAttr = routeLatLngs.map(([lat, lng]) => {
+                const p = project({ lat, lng });
+                return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+            }).join(' ');
+
+            svg.innerHTML = `
+                <polyline points="${pointsAttr}" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="2.7"
+                          stroke-linecap="round" stroke-linejoin="round"></polyline>
+                <polyline points="${pointsAttr}" fill="none" stroke="#14B8E6" stroke-width="1.5"
+                          stroke-linecap="round" stroke-linejoin="round"></polyline>
+            `;
+
+            const markers = [];
+            const depotPoint = project(waypoints[0]);
+            markers.push(`<div class="rm-map-marker depot" title="${escapeHtml(depotLabel)}"
+                style="left:${toPct(depotPoint.x)}%;top:${toPct(depotPoint.y)}%;">D</div>`);
+            orderedStops.forEach((stop, idx) => {
+                const p = project({ lat: stop.lat, lng: stop.lng });
+                const tooltip = stop.label ? stop.label.split(',')[0] : `Stop ${stop.id}`;
+                markers.push(`<div class="rm-map-marker stop" title="${escapeHtml(tooltip)}"
+                    style="left:${toPct(p.x)}%;top:${toPct(p.y)}%;">${idx + 1}</div>`);
+            });
+            markerLayer.innerHTML = markers.join('');
+            currentRouteLayer = { points: routeLatLngs };
+            currentMarkerGroup = { count: markers.length };
+        }
+
         async function renderMapVisualization(result) {
             const depotLat = parseFloat(document.getElementById('depotLat').value);
             const depotLng = parseFloat(document.getElementById('depotLng').value);
@@ -4396,30 +4394,12 @@
 
             initLeafletMap(centerLat, centerLng, orderedStops.length === 0 ? 14 : 13);
 
-            if (currentRouteLayer)  { leafletMap.removeLayer(currentRouteLayer);  currentRouteLayer  = null; }
-            if (currentMarkerGroup) { leafletMap.removeLayer(currentMarkerGroup); currentMarkerGroup = null; }
-
-            const makeIcon = (label, bg) => L.divIcon({
-                html: `<div style="background:${bg};color:#fff;font-weight:700;font-size:12px;`
-                    + `width:26px;height:26px;border-radius:50%;display:flex;align-items:center;`
-                    + `justify-content:center;border:2.5px solid #fff;`
-                    + `box-shadow:0 2px 6px rgba(0,0,0,0.35);">${label}</div>`,
-                className: '',
-                iconSize: [26, 26],
-                iconAnchor: [13, 13]
-            });
-
-            currentMarkerGroup = L.layerGroup().addTo(leafletMap);
             const depotLabel = depotData.label || 'Depot';
-            L.marker([depotLat, depotLng], { icon: makeIcon('D', '#FF8A34') })
-                .bindTooltip(depotLabel, { permanent: false })
-                .addTo(currentMarkerGroup);
-
             const mapError = document.getElementById('mapError');
             if (orderedStops.length === 0) {
                 mapError.textContent = '⚠️ No stops have geographic coordinates.';
                 mapError.style.display = 'block';
-                leafletMap.setView([depotLat, depotLng], 14);
+                renderInternalMap([[depotLat, depotLng]], [{ lat: depotLat, lng: depotLng }], [], depotLabel);
                 return;
             }
 
@@ -4441,38 +4421,14 @@
                 mapError.style.display = 'none';
             } catch (err) {
                 if (err.name === 'AbortError') return;
-                // Do NOT fall back to straight-line geometry — that would produce
-                // fake routes that contradict real road distances and travel times.
-                // Show a clear error instead; markers are still rendered below.
-                mapError.textContent = `⚠️ Road routing unavailable: ${err.message}. Check your internet connection or try a different travel mode.`;
+                mapError.textContent = `⚠️ Road routing unavailable: ${err.message}.`;
                 mapError.style.display = 'block';
                 clearNavigationPanel();
+                return;
             }
 
             if (!leafletMap) return;
-
-            // Draw the road route polyline only when real OSRM data is available.
-            // Never draw straight-line geometry for real addresses.
-            if (osrmData) {
-                currentRouteLayer = L.polyline(osrmData.latLngs, {
-                    color: '#14B8E6', weight: 4, opacity: 0.85, lineJoin: 'round'
-                }).addTo(leafletMap);
-            }
-
-            orderedStops.forEach((stop, idx) => {
-                const tooltip = stop.label ? stop.label.split(',')[0] : `Stop ${stop.id}`;
-                L.marker([stop.lat, stop.lng], { icon: makeIcon(idx + 1, '#14C8B0') })
-                    .bindTooltip(`${tooltip} · Order ${idx + 1}`, { permanent: false })
-                    .addTo(currentMarkerGroup);
-            });
-
-            // Fit the map to the road route when available; otherwise fit to all markers.
-            if (currentRouteLayer) {
-                leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [30, 30] });
-            } else {
-                const markerBounds = L.latLngBounds(waypointsForRouting.map(p => [p.lat, p.lng]));
-                leafletMap.fitBounds(markerBounds, { padding: [40, 40] });
-            }
+            renderInternalMap(osrmData.latLngs, waypointsForRouting, orderedStops, depotLabel);
 
             // Render road-based navigation summary and turn-by-turn directions
             if (osrmData) {
