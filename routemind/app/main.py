@@ -280,7 +280,10 @@ def _place_matches(place: dict, query: str, country_code: str | None) -> bool:
     if country_code and place["address"].get("country_code") != country_code.lower():
         return False
     searchable = _normalize_place_text(" ".join([place["display_name"], *place["aliases"]]))
-    query_parts = [part for part in _normalize_place_text(query).split() if not part.isdigit()]
+    query_parts = _normalize_place_text(query).split()
+    non_numeric_parts = [part for part in query_parts if not part.isdigit()]
+    if len(non_numeric_parts) >= 2:
+        query_parts = non_numeric_parts
     return all(part in searchable for part in query_parts)
 
 
@@ -332,16 +335,22 @@ def _fetch_nominatim_results(
     with urlopen(request, timeout=NOMINATIM_TIMEOUT_SECONDS) as response:
         payload = json.loads(response.read().decode("utf-8"))
 
-    return [
-        GeocodeResult(
-            lat=float(item["lat"]),
-            lon=float(item["lon"]),
-            display_name=item.get("display_name", query),
-            address=item.get("address") or {},
+    results: list[GeocodeResult] = []
+    for item in payload:
+        try:
+            lat = float(item["lat"])
+            lon = float(item["lon"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        results.append(
+            GeocodeResult(
+                lat=lat,
+                lon=lon,
+                display_name=item.get("display_name", query),
+                address=item.get("address") or {},
+            )
         )
-        for item in payload
-        if "lat" in item and "lon" in item
-    ]
+    return results
 
 
 def _search_local_places(query: str, country_code: str | None, limit: int) -> list[GeocodeResult]:
@@ -385,7 +394,7 @@ def _segment_geometry(start: tuple[float, float], end: tuple[float, float]) -> l
 
 @app.get("/geocode/search", response_model=list[GeocodeResult])
 def local_geocode_search(
-    q: str | None = Query(default=None, min_length=1),
+    q: str | None = None,
     country_code: str | None = Query(default=None, min_length=2, max_length=2),
     limit: int = Query(default=6, ge=1, le=10),
     city: str | None = None,
@@ -398,10 +407,18 @@ def local_geocode_search(
         raise HTTPException(status_code=422, detail="Search query or address fields are required.")
 
     try:
-        external_results = _fetch_nominatim_results(query, country_code, limit, city, street, country, house_number)
+        external_results = _fetch_nominatim_results(
+            query=query,
+            country_code=country_code,
+            limit=limit,
+            city=city,
+            street=street,
+            country=country,
+            house_number=house_number,
+        )
         if external_results:
             return external_results[:limit]
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError, ValueError) as exc:
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
         logger.warning("nominatim_search_failed query=%s country_code=%s reason=%s", query, country_code, exc)
 
     return _search_local_places(query, country_code, limit)

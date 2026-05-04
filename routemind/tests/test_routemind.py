@@ -546,7 +546,14 @@ class RouteMindTests(unittest.TestCase):
                 country="Israel",
             )
 
-        fetch.assert_called_once_with("1 Ezra, Netanya, Israel", "il", 1, "Netanya", "Ezra", "Israel", "1")
+        _, args = fetch.call_args
+        self.assertEqual(args["query"], "1 Ezra, Netanya, Israel")
+        self.assertEqual(args["country_code"], "il")
+        self.assertEqual(args["limit"], 1)
+        self.assertEqual(args["city"], "Netanya")
+        self.assertEqual(args["street"], "Ezra")
+        self.assertEqual(args["country"], "Israel")
+        self.assertEqual(args["house_number"], "1")
 
     def test_local_road_route_mode_changes_eta(self) -> None:
         waypoints = [
